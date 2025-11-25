@@ -18,6 +18,10 @@
   const CONFIG_PATH = '/data/adb/meta-hybrid/config.toml';
   const MODE_CONFIG_PATH = '/data/adb/meta-hybrid/module_mode.conf';
   const IMAGE_MNT_PATH = '/data/adb/meta-hybrid/mnt';
+  
+  // Default Monet seed color (Google native purple)
+  // Used to generate the full theme when the system theme color cannot be retrieved
+  const DEFAULT_SEED = '#6750A4';
 
   const icons = {
     settings: "M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.03-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z",
@@ -30,6 +34,7 @@
     dark_mode: "M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"
   };
 
+  // Simple Monet algorithm implementation
   const Monet = {
     hexToRgb: (hex) => {
       const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -110,40 +115,46 @@
       };
 
       const root = document.documentElement.style;
-      root.setProperty('--md-sys-color-primary', tones.primary);
-      root.setProperty('--md-sys-color-on-primary', tones.onPrimary);
-      root.setProperty('--md-sys-color-primary-container', tones.primaryCont);
-      root.setProperty('--md-sys-color-on-primary-container', tones.onPrimaryCont);
-      root.setProperty('--md-sys-color-secondary', tones.secondary);
-      root.setProperty('--md-sys-color-on-secondary', tones.onSecondary);
-      root.setProperty('--md-sys-color-secondary-container', tones.secondaryCont);
-      root.setProperty('--md-sys-color-on-secondary-container', tones.onSecondaryCont);
-      root.setProperty('--md-sys-color-tertiary', tones.tertiary);
-      root.setProperty('--md-sys-color-on-tertiary', tones.onTertiary);
-      root.setProperty('--md-sys-color-tertiary-container', tones.tertiaryCont);
-      root.setProperty('--md-sys-color-on-tertiary-container', tones.onTertiaryCont);
-      root.setProperty('--md-sys-color-error', tones.error);
-      root.setProperty('--md-sys-color-on-error', tones.onError);
-      root.setProperty('--md-sys-color-error-container', tones.errorCont);
-      root.setProperty('--md-sys-color-on-error-container', tones.onErrorCont);
-      root.setProperty('--md-sys-color-background', tones.bg);
-      root.setProperty('--md-sys-color-on-background', tones.onBg);
-      root.setProperty('--md-sys-color-surface', tones.surf);
-      root.setProperty('--md-sys-color-on-surface', tones.onSurf);
-      root.setProperty('--md-sys-color-surface-variant', tones.surfVar);
-      root.setProperty('--md-sys-color-on-surface-variant', tones.onSurfVar);
-      root.setProperty('--md-sys-color-outline', tones.outline);
-      root.setProperty('--md-sys-color-outline-variant', tones.outlineVar);
-      root.setProperty('--md-sys-color-surface-container-low', tones.surfContLow);
-      root.setProperty('--md-sys-color-surface-container', tones.surfCont);
-      root.setProperty('--md-sys-color-surface-container-high', tones.surfContHigh);
-      root.setProperty('--md-sys-color-surface-container-highest', tones.surfContHighest);
+      for (const [key, value] of Object.entries(tones)) {
+        // Map key back to CSS variable name
+        let cssVar = '';
+        if(key === 'bg') cssVar = '--md-sys-color-background';
+        else if(key === 'onBg') cssVar = '--md-sys-color-on-background';
+        else if(key === 'surf') cssVar = '--md-sys-color-surface';
+        else if(key === 'onSurf') cssVar = '--md-sys-color-on-surface';
+        else if(key === 'surfVar') cssVar = '--md-sys-color-surface-variant';
+        else if(key === 'onSurfVar') cssVar = '--md-sys-color-on-surface-variant';
+        else if(key === 'primary') cssVar = '--md-sys-color-primary';
+        else if(key === 'onPrimary') cssVar = '--md-sys-color-on-primary';
+        else if(key === 'primaryCont') cssVar = '--md-sys-color-primary-container';
+        else if(key === 'onPrimaryCont') cssVar = '--md-sys-color-on-primary-container';
+        else if(key === 'secondary') cssVar = '--md-sys-color-secondary';
+        else if(key === 'onSecondary') cssVar = '--md-sys-color-on-secondary';
+        else if(key === 'secondaryCont') cssVar = '--md-sys-color-secondary-container';
+        else if(key === 'onSecondaryCont') cssVar = '--md-sys-color-on-secondary-container';
+        else if(key === 'tertiary') cssVar = '--md-sys-color-tertiary';
+        else if(key === 'onTertiary') cssVar = '--md-sys-color-on-tertiary';
+        else if(key === 'tertiaryCont') cssVar = '--md-sys-color-tertiary-container';
+        else if(key === 'onTertiaryCont') cssVar = '--md-sys-color-on-tertiary-container';
+        else if(key === 'error') cssVar = '--md-sys-color-error';
+        else if(key === 'onError') cssVar = '--md-sys-color-on-error';
+        else if(key === 'errorCont') cssVar = '--md-sys-color-error-container';
+        else if(key === 'onErrorCont') cssVar = '--md-sys-color-on-error-container';
+        else if(key === 'outline') cssVar = '--md-sys-color-outline';
+        else if(key === 'outlineVar') cssVar = '--md-sys-color-outline-variant';
+        else if(key === 'surfContLow') cssVar = '--md-sys-color-surface-container-low';
+        else if(key === 'surfCont') cssVar = '--md-sys-color-surface-container';
+        else if(key === 'surfContHigh') cssVar = '--md-sys-color-surface-container-high';
+        else if(key === 'surfContHighest') cssVar = '--md-sys-color-surface-container-highest';
+        
+        if (cssVar) root.setProperty(cssVar, value);
+      }
     }
   };
 
   let lang = 'en';
   let theme = 'dark';
-  let systemSeedColor = null;
+  let currentSeed = DEFAULT_SEED; // Default to default seed
 
   $: L = locate[lang] || locate['en'];
 
@@ -332,18 +343,28 @@
   }
 
   async function fetchSystemColor() {
+    let foundSeed = null;
     try {
+      // Attempt to fetch system theme color
       const { stdout } = await exec('settings get secure theme_customization_overlay_packages');
-      if (!stdout) return;
-      const match = /["']?android\.theme\.customization\.system_palette["']?\s*:\s*["']?#?([0-9a-fA-F]{6,8})["']?/i.exec(stdout) || 
-                    /["']?source_color["']?\s*:\s*["']?#?([0-9a-fA-F]{6,8})["']?/i.exec(stdout);
-      if (match && match[1]) {
-        let hex = match[1];
-        if (hex.length === 8) hex = hex.substring(2);
-        systemSeedColor = '#' + hex;
-        Monet.apply(systemSeedColor, theme === 'dark');
+      if (stdout) {
+        const match = /["']?android\.theme\.customization\.system_palette["']?\s*:\s*["']?#?([0-9a-fA-F]{6,8})["']?/i.exec(stdout) || 
+                      /["']?source_color["']?\s*:\s*["']?#?([0-9a-fA-F]{6,8})["']?/i.exec(stdout);
+        if (match && match[1]) {
+          let hex = match[1];
+          if (hex.length === 8) hex = hex.substring(2);
+          foundSeed = '#' + hex;
+        }
       }
     } catch (e) {}
+
+    // Use system color if found; otherwise keep currentSeed as DEFAULT_SEED
+    if (foundSeed) {
+      currentSeed = foundSeed;
+    }
+    
+    // Apply colors (whether default or system)
+    Monet.apply(currentSeed, theme === 'dark');
   }
 
   function handleTouchStart(e) {
@@ -388,17 +409,21 @@
     if (savedLang && locate[savedLang]) lang = savedLang;
     
     const savedTheme = localStorage.getItem('mm-theme');
+    // Apply default color on initialization to avoid colorless page while waiting for exec
+    Monet.apply(currentSeed, (savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark');
+
     setTheme(savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
     
     loadConfig();
-    fetchSystemColor();
+    fetchSystemColor(); // Fetch system color asynchronously; will auto-refresh upon retrieval
   });
 
   function setTheme(t) {
     theme = t;
     document.documentElement.setAttribute('data-theme', t);
     localStorage.setItem('mm-theme', t);
-    if (systemSeedColor) Monet.apply(systemSeedColor, t === 'dark');
+    // Re-calculate using current known seed (default or system) when switching themes
+    Monet.apply(currentSeed, t === 'dark');
   }
 
   function toggleTheme() { setTheme(theme === 'light' ? 'dark' : 'light'); }
@@ -442,8 +467,8 @@
   <main class="main-content" on:touchstart={handleTouchStart} on:touchend={handleTouchEnd}>
     {#key activeTab}
       <div class="tab-pane" 
-           in:fly={{ x: 50 * transitionDirection, duration: 300, easing: cubicOut }} 
-           out:fly={{ x: -50 * transitionDirection, duration: 300, easing: cubicIn }}>
+           in:fly={{ x: 30 * transitionDirection, duration: 250, delay: 90, easing: cubicOut }} 
+           out:fly={{ x: -30 * transitionDirection, duration: 150, easing: cubicIn }}>
         
         {#if activeTab === 'config'}
           <div class="md3-card">
