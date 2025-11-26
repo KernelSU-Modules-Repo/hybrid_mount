@@ -1,0 +1,40 @@
+.rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rule-card {
+  background: var(--md-sys-color-surface-container-low);
+  padding: 16px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: background-color 0.2s;
+}
+
+.rule-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.module-name {
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--md-sys-color-on-surface);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.module-id {
+  font-size: 12px;
+  color: var(--md-sys-color-outline);
+  font-family: var(--md-ref-typeface-mono);
+}
