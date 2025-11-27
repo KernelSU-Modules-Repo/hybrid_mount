@@ -1,4 +1,4 @@
-、// Default configuration values
+// Default configuration values
 export const DEFAULT_CONFIG = {
   moduledir: '/data/adb/modules',
   tempdir: '',
