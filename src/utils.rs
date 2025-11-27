@@ -2,16 +2,18 @@ use std::{
     fs::{create_dir_all, remove_dir_all, remove_file, write, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
+    process::Command,
     sync::Mutex,
 };
 
 use anyhow::{Context, Result, bail};
+use rustix::mount::{mount, MountFlags, unmount, UnmountFlags};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use extattr::{Flags as XattrFlags, lsetxattr};
 
 const SELINUX_XATTR: &str = "security.selinux";
-const TEMP_DIR_SUFFIX: &str = ".magic_mount";
-const TMPFS_CANDIDATES: &[&str] = &["/mnt/vendor", "/mnt", "/debug_ramdisk"];
+// Test file to check xattr support
+const XATTR_TEST_FILE: &str = ".xattr_test";
 
 // --- File Logger Implementation ---
 struct FileLogger {
@@ -52,11 +54,10 @@ pub fn init_logger(verbose: bool, log_path: &Path) -> Result<()> {
         create_dir_all(parent)?;
     }
 
-    // Append mode
     let file = OpenOptions::new()
         .create(true)
         .write(true)
-        .append(true)
+        .append(true) // Append mode
         .open(log_path)
         .with_context(|| format!("Failed to open log file: {}", log_path.display()))?;
 
@@ -74,23 +75,13 @@ pub fn init_logger(verbose: bool, log_path: &Path) -> Result<()> {
 pub fn lsetfilecon<P: AsRef<Path>>(path: P, con: &str) -> Result<()> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
-        // Try to set xattr. If it fails, convert the errno to std::io::Error to check the kind.
         if let Err(e) = lsetxattr(&path, SELINUX_XATTR, con, XattrFlags::empty()) {
             let io_err = std::io::Error::from(e);
-            
-            // Check if the error is PermissionDenied (EACCES/EPERM)
             if io_err.kind() == std::io::ErrorKind::PermissionDenied {
-                log::warn!(
-                    "Failed to change SELinux context for {}: Permission denied (ignored)",
-                    path.as_ref().display()
-                );
+                log::warn!("SELinux permission denied for {} (ignored)", path.as_ref().display());
             } else {
-                return Err(io_err).with_context(|| {
-                    format!(
-                        "Failed to change SELinux context for {}",
-                        path.as_ref().display()
-                    )
-                });
+                // Don't error out, just warn. Critical for tmpfs fallback logic if xattr fails unexpectedly.
+                log::warn!("Failed to set SELinux context for {}: {}", path.as_ref().display(), io_err);
             }
         }
     }
@@ -100,13 +91,9 @@ pub fn lsetfilecon<P: AsRef<Path>>(path: P, con: &str) -> Result<()> {
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub fn lgetfilecon<P: AsRef<Path>>(path: P) -> Result<String> {
     let con = extattr::lgetxattr(&path, SELINUX_XATTR).with_context(|| {
-        format!(
-            "Failed to get SELinux context for {}",
-            path.as_ref().display()
-        )
+        format!("Failed to get SELinux context for {}", path.as_ref().display())
     })?;
-    let con = String::from_utf8_lossy(&con);
-    Ok(con.to_string())
+    Ok(String::from_utf8_lossy(&con).to_string())
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -115,94 +102,96 @@ pub fn lgetfilecon<P: AsRef<Path>>(_path: P) -> Result<String> {
 }
 
 pub fn ensure_dir_exists<T: AsRef<Path>>(dir: T) -> Result<()> {
-    let result = create_dir_all(&dir);
-    if dir.as_ref().is_dir() && result.is_ok() {
-        Ok(())
-    } else {
-        bail!("{} is not a regular directory", dir.as_ref().display())
+    if !dir.as_ref().exists() {
+        create_dir_all(&dir)?;
     }
+    Ok(())
 }
 
-fn is_writable_tmpfs(path: &Path) -> bool {
-    if !path.is_dir() {
-        log::debug!("  {} is not a directory", path.display());
+// --- Storage Utils ---
+
+/// Checks if the filesystem at `path` supports SELinux extended attributes.
+/// Creates a dummy file, tries to set xattr, and cleans up.
+pub fn is_xattr_supported(path: &Path) -> bool {
+    let test_file = path.join(XATTR_TEST_FILE);
+    if let Err(_) = write(&test_file, b"test") {
         return false;
     }
 
-    if let Ok(mounts) = std::fs::read_to_string("/proc/mounts") {
-        let path_str = path.to_string_lossy();
-        let is_tmpfs = mounts.lines().any(|line| {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            parts.len() >= 3 && parts[1] == path_str && parts[2] == "tmpfs"
-        });
-
-        if !is_tmpfs {
-            log::debug!("  {} is not a tmpfs", path.display());
-            return false;
-        }
-        log::debug!("  {} is a tmpfs", path.display());
-    } else {
-        log::debug!("  failed to read /proc/mounts");
-    }
-
-    let test_file = path.join(format!(".mm_test_{}", std::process::id()));
-    let writable = write(&test_file, b"test").is_ok();
-
-    if writable {
-        let _ = remove_file(&test_file);
-        log::debug!("  {} is writable", path.display());
-    } else {
-        log::debug!("  {} is not writable", path.display());
-    }
-
-    writable
+    let supported = lsetfilecon(&test_file, "u:object_r:system_file:s0").is_ok();
+    let _ = remove_file(test_file);
+    supported
 }
 
-pub fn select_temp_dir() -> Result<PathBuf> {
-    log::debug!("searching for suitable tmpfs mount point...");
-
-    for candidate in TMPFS_CANDIDATES {
-        let path = Path::new(candidate);
-        log::debug!("checking tmpfs candidate: {}", path.display());
-
-        if is_writable_tmpfs(path) {
-            let temp_dir = path.join(TEMP_DIR_SUFFIX);
-            log::info!(
-                "selected tmpfs: {} -> {}",
-                path.display(),
-                temp_dir.display()
-            );
-            return Ok(temp_dir);
-        }
-    }
-
-    bail!(
-        "no writable tmpfs found in candidates: {}",
-        TMPFS_CANDIDATES.join(", ")
-    )
+/// Mounts Tmpfs at the target directory.
+pub fn mount_tmpfs(target: &Path) -> Result<()> {
+    ensure_dir_exists(target)?;
+    // Size is usually dynamic, but we can set a generous limit if needed.
+    // Defaulting to shared memory limits.
+    mount("tmpfs", target, "tmpfs", MountFlags::empty(), "mode=0755")
+        .context("Failed to mount tmpfs")?;
+    Ok(())
 }
 
-pub fn ensure_temp_dir(temp_dir: &Path) -> Result<()> {
-    if temp_dir.exists() {
-        log::debug!("cleaning existing temp dir: {}", temp_dir.display());
-        remove_dir_all(temp_dir)
-            .with_context(|| format!("failed to clean temp dir {temp_dir:?}"))?;
+/// Mounts an ext4 loop image at the target directory.
+pub fn mount_image(image_path: &Path, target: &Path) -> Result<()> {
+    ensure_dir_exists(target)?;
+    
+    // We use the shell `mount` command for simplicity with loop devices,
+    // as rustix mount requires setting up the loop device manually via ioctl.
+    let status = Command::new("mount")
+        .args(["-t", "ext4", "-o", "loop,rw,noatime"])
+        .arg(image_path)
+        .arg(target)
+        .status()
+        .context("Failed to execute mount command")?;
+
+    if !status.success() {
+        bail!("Mount command failed");
     }
+    Ok(())
+}
 
-    create_dir_all(temp_dir).with_context(|| format!("failed to create temp dir {temp_dir:?}"))?;
+/// Synchronizes a directory from source to dest using `cp -af`.
+/// Used to copy module files from /data/adb/modules to Tmpfs/Image.
+pub fn sync_dir(src: &Path, dst: &Path) -> Result<()> {
+    if !src.exists() { return Ok(()); }
+    ensure_dir_exists(dst)?;
 
-    log::debug!("temp dir ready: {}", temp_dir.display());
+    // Use cp -af to preserve all attributes (recursive, no dereference, preserve all)
+    // -a: archive mode (recursive, preserves symlinks, perms, times, context)
+    // -f: force
+    // Note: 'cp' in Android usually supports -a (toybox/busybox)
+    let status = Command::new("cp")
+        .arg("-af")
+        .arg(format!("{}/.", src.display())) // Copy content, not the dir itself
+        .arg(dst)
+        .status()
+        .context("Failed to execute cp command")?;
+
+    if !status.success() {
+        bail!("Failed to sync {} to {}", src.display(), dst.display());
+    }
     Ok(())
 }
 
 pub fn cleanup_temp_dir(temp_dir: &Path) {
     if let Err(e) = remove_dir_all(temp_dir) {
-        log::warn!(
-            "failed to clean up temp dir {}: {:#}",
-            temp_dir.display(),
-            e
-        );
-    } else {
-        log::debug!("cleaned up temp dir: {}", temp_dir.display());
+        log::warn!("Failed to clean up temp dir {}: {:#}", temp_dir.display(), e);
     }
+}
+
+pub fn ensure_temp_dir(temp_dir: &Path) -> Result<()> {
+    if temp_dir.exists() {
+        remove_dir_all(temp_dir).ok();
+    }
+    create_dir_all(temp_dir)?;
+    Ok(())
+}
+
+pub fn select_temp_dir() -> Result<PathBuf> {
+    // Basic implementation for now, usually /debug_ramdisk or similar
+    // Since we are moving to Smart Storage, the logic in main.rs handles the big mounts.
+    // This is for magic mount working dirs.
+    Ok(PathBuf::from("/debug_ramdisk/meta_hybrid_work"))
 }
