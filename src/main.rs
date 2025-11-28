@@ -96,7 +96,10 @@ fn main() -> Result<()> {
         }
         Err(e) => {
             log::error!("Magic Mount Failed");
-            log::error!("error: {:#}", e);
+            for cause in e.chain() {
+                log::error!("{cause:#?}");
+            }
+            log::error!("{:#?}", e.backtrace());
             Err(e)
         }
     }
