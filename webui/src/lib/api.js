@@ -115,25 +115,27 @@ export const API = {
   },
 
   getStorageUsage: async () => {
-    // Check modules.img mount point usage
-    const mntPath = PATHS.IMAGE_MNT;
     try {
-      const { stdout } = await exec(`df -h "${mntPath}" | tail -n 1`);
-      // Example output: /dev/loop1       1.9G   12M  1.8G   1% /data/adb/meta-hybrid/mnt
-      // Columns: Filesystem(0) Size(1) Used(2) Avail(3) Use%(4) Mounted on(5)
-      const parts = stdout.trim().split(/\s+/);
-      if (parts.length >= 5) {
+      // Execute the binary directly. Assumes standard module path.
+      // /data/adb/modules/meta-hybrid/meta-hybrid storage
+      const cmd = "/data/adb/modules/meta-hybrid/meta-hybrid storage";
+      const { errno, stdout } = await exec(cmd);
+      
+      if (errno === 0 && stdout) {
+        // Output is expected to be JSON: { "size": "...", "used": "...", "percent": "..." }
+        const data = JSON.parse(stdout);
+        // Ensure default structure if fields missing
         return {
-          size: parts[1],
-          used: parts[2],
-          avail: parts[3],
-          percent: parts[4]
+          size: data.size || '-',
+          used: data.used || '-',
+          avail: data.avail || '-', // Backend currently only sends size/used/percent
+          percent: data.percent || '0%'
         };
       }
     } catch (e) {
-      // ignore
+      console.error("Storage check failed:", e);
     }
-    return { size: '-', used: '-', avail: '-', percent: '0%' };
+    return { size: '-', used: '-', percent: '0%' };
   },
 
   fetchSystemColor: async () => {
