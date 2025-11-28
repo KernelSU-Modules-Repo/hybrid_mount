@@ -22,7 +22,7 @@ fn default_moduledir() -> PathBuf {
 }
 
 fn default_mountsource() -> String {
-    String::from("MaGIcMounT")
+    String::from("KSU")
 }
 
 impl Default for Config {
