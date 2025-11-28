@@ -5,7 +5,9 @@ export const DEFAULT_CONFIG = {
   mountsource: 'KSU',
   logfile: '/data/adb/meta-hybrid/daemon.log',
   verbose: false,
-  partitions: []
+  partitions: [],
+  force_ext4: false,
+  enable_nuke: false
 };
 
 // File system paths

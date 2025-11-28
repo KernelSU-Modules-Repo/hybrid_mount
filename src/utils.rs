@@ -1,3 +1,4 @@
+// meta-hybrid_mount/src/utils.rs
 use std::{
     fs::{create_dir, create_dir_all, remove_dir, remove_dir_all, remove_file, write, OpenOptions},
     io::Write,
@@ -106,7 +107,7 @@ pub fn ensure_dir_exists<T: AsRef<Path>>(dir: T) -> Result<()> {
     Ok(())
 }
 
-// --- Smart Storage Utils ---
+// --- Smart Storage & Stealth Utils ---
 
 pub fn is_xattr_supported(path: &Path) -> bool {
     let test_file = path.join(XATTR_TEST_FILE);
@@ -178,12 +179,7 @@ pub fn ensure_temp_dir(temp_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Selects a suitable temporary directory for mounting.
-/// Iterates through common tmpfs locations to find a writable one.
 pub fn select_temp_dir() -> Result<PathBuf> {
-    // Candidates for the base directory.
-    // We prioritize memory-backed filesystems (tmpfs/ramfs) for stealth and speed.
-    // /data/adb/meta-hybrid is the fallback (persistent but writable).
     let candidates = [
         "/debug_ramdisk",
         "/sbin",
@@ -195,15 +191,12 @@ pub fn select_temp_dir() -> Result<PathBuf> {
 
     for base in candidates {
         let path = Path::new(base);
-        // Must exist and be a directory
         if !path.is_dir() {
             continue;
         }
 
-        // Try to create a probe directory to verify writability
         let probe_dir = path.join(".mm_rw_probe");
         if create_dir(&probe_dir).is_ok() {
-            // Cleanup and select this base
             let _ = remove_dir(&probe_dir);
             let work_dir = path.join("meta_hybrid_work");
             log::debug!("Selected temp dir base: {}", path.display());
@@ -212,4 +205,46 @@ pub fn select_temp_dir() -> Result<PathBuf> {
     }
 
     bail!("No writable temporary directory found! Checked: {:?}", candidates)
+}
+
+/// Helper to get kernel release (uname -r)
+pub fn get_kernel_release() -> Result<String> {
+    let output = Command::new("uname").arg("-r").output()?;
+    let release = String::from_utf8(output.stdout)?.trim().to_string();
+    Ok(release)
+}
+
+/// Finds a "decoy" directory to use as the base mount point.
+pub fn find_decoy_mount_point() -> Option<PathBuf> {
+    let candidates = [
+        "/oem",
+        "/mnt/vendor/oem",
+        "/mnt/vendor/persist",
+        "/mnt/product/persist",
+        "/acct",
+        "/sys/kernel/tracing",
+        "/debug_ramdisk/decoy",
+    ];
+
+    for path_str in candidates {
+        let path = Path::new(path_str);
+        if path.is_dir() {
+            // Check if empty
+            if let Ok(mut entries) = path.read_dir() {
+                if entries.next().is_none() {
+                    log::info!("Found empty decoy directory: {}", path_str);
+                    return Some(path.to_path_buf());
+                }
+            }
+        }
+    }
+    
+    let dev_decoy = Path::new("/dev/.mnt_hybrid");
+    if !dev_decoy.exists() {
+        if create_dir(dev_decoy).is_ok() {
+             return Some(dev_decoy.to_path_buf());
+        }
+    }
+
+    None
 }

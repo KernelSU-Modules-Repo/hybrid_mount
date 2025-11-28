@@ -3,7 +3,6 @@
   import { ICONS, DEFAULT_CONFIG } from '../lib/constants';
   
   import './ConfigTab.css';
-
   let partitionInput = $state(store.config.partitions.join(', '));
 
   function save() {
@@ -17,6 +16,22 @@
     <span>{store.L.config.verboseLabel}</span>
     <label class="md3-switch">
       <input type="checkbox" bind:checked={store.config.verbose}>
+      <span class="track"><span class="thumb"></span></span>
+    </label>
+  </div>
+  
+  <div class="switch-row">
+    <span>{store.L.config.forceExt4}</span>
+    <label class="md3-switch">
+      <input type="checkbox" bind:checked={store.config.force_ext4}>
+      <span class="track"><span class="thumb"></span></span>
+    </label>
+  </div>
+
+  <div class="switch-row">
+    <span>{store.L.config.enableNuke}</span>
+    <label class="md3-switch">
+      <input type="checkbox" bind:checked={store.config.enable_nuke}>
       <span class="track"><span class="thumb"></span></span>
     </label>
   </div>

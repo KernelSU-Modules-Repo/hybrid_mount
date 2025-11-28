@@ -22,6 +22,8 @@ function parseKvConfig(text) {
       else if (key === 'tempdir') result.tempdir = val;
       else if (key === 'mountsource') result.mountsource = val;
       else if (key === 'verbose') result.verbose = (val === 'true');
+      else if (key === 'force_ext4') result.force_ext4 = (val === 'true');
+      else if (key === 'enable_nuke') result.enable_nuke = (val === 'true');
       else if (key === 'partitions') result.partitions = val.split(',').map(s => s.trim()).filter(Boolean);
     });
     return result;
@@ -35,6 +37,8 @@ function serializeKvConfig(cfg) {
   if (cfg.tempdir) lines.push(`tempdir = ${q(cfg.tempdir)}`);
   lines.push(`mountsource = ${q(cfg.mountsource)}`);
   lines.push(`verbose = ${cfg.verbose}`);
+  lines.push(`force_ext4 = ${cfg.force_ext4}`);
+  lines.push(`enable_nuke = ${cfg.enable_nuke}`);
   if (cfg.partitions.length) lines.push(`partitions = ${q(cfg.partitions.join(','))}`);
   return lines.join('\n');
 }
