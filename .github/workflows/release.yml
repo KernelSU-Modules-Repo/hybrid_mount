@@ -61,7 +61,7 @@ jobs:
           path: output/artifact/
       - name: Install git-cliff
         run: |
-          curl -sSL https://github.com/orhun/git-cliff/releases/latest/download/git-cliff-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          curl -sSL https://github.com/orhun/git-cliff/releases/download/v2.10.1/git-cliff-2.10.1-x86_64-unknown-linux-gnu.tar.gz | tar xz
           sudo mv git-cliff /usr/local/bin/
       - name: Generate Changelog
         run: |
