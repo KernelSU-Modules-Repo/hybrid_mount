@@ -14,6 +14,7 @@
     store.loadModules();
   });
 
+  // Derived state: Filter modules based on search query and mode
   let filteredModules = $derived(store.modules.filter(m => {
     const q = searchQuery.toLowerCase();
     const matchSearch = m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
@@ -27,7 +28,7 @@
     } else {
       expandedMap[id] = true;
     }
-    // Re-assign to trigger reactivity in Svelte 5 rune
+    // Re-assign to trigger reactivity
     expandedMap = { ...expandedMap };
   }
 
@@ -99,18 +100,9 @@
               <span class="module-id">{mod.id} <span style="opacity:0.6; margin-left: 8px;">{mod.version}</span></span>
             </div>
           </div>
-          <div 
-            class="text-field" 
-            style="margin-bottom:0; width: 140px; flex-shrink: 0;" 
-            onclick={(e) => e.stopPropagation()}
-            onkeydown={(e) => e.stopPropagation()}
-            role="group"
-            tabindex="-1"
-          >
-            <select bind:value={mod.mode}>
-              <option value="auto">{store.L.modules.modeAuto}</option>
-              <option value="magic">{store.L.modules.modeMagic}</option>
-            </select>
+          
+          <div class="mode-badge {mod.mode === 'magic' ? 'badge-magic' : 'badge-auto'}">
+            {mod.mode === 'magic' ? store.L.modules.modeMagic : store.L.modules.modeAuto}
           </div>
         </div>
         
@@ -118,6 +110,25 @@
           <div class="rule-details" transition:slide={{ duration: 200 }}>
             <p class="module-desc">{mod.description || 'No description'}</p>
             <p class="module-meta">Author: {mod.author || 'Unknown'}</p>
+            
+            <div class="config-section">
+              <div class="config-row">
+                <span class="config-label">{store.L.config.title}:</span>
+                <div 
+                  class="text-field compact-select"
+                  onclick={(e) => e.stopPropagation()}
+                  onkeydown={(e) => e.stopPropagation()}
+                  role="group"
+                  tabindex="-1"
+                >
+                  <select bind:value={mod.mode}>
+                    <option value="auto">{store.L.modules.modeAuto}</option>
+                    <option value="magic">{store.L.modules.modeMagic}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
           </div>
         {/if}
       </div>
