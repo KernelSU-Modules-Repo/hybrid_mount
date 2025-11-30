@@ -17,13 +17,12 @@ pub struct MountPlan {
     pub overlay_ops: Vec<OverlayOperation>,
     pub magic_module_paths: Vec<PathBuf>,
     
-    // For stats
+    // For stats and reporting
     pub overlay_module_ids: Vec<String>,
     pub magic_module_ids: Vec<String>,
 }
 
 /// Generates a mount plan based on the inventory and current storage state.
-/// The storage_root contains the SYNCED module files.
 pub fn generate(
     config: &config::Config, 
     modules: &[Module], 
@@ -41,7 +40,6 @@ pub fn generate(
     target_partitions.extend(config.partitions.iter().map(|s| s.as_str()));
 
     // Modules are already sorted Z->A in inventory.
-    // Iterate through them to build layers.
     for module in modules {
         let content_path = storage_root.join(&module.id);
         
@@ -51,7 +49,6 @@ pub fn generate(
         }
 
         if module.mode == "magic" {
-            // Force Magic Mount
             if has_meaningful_content(&content_path, &target_partitions) {
                 magic_paths.insert(content_path);
                 magic_ids.insert(module.id.clone());
@@ -63,7 +60,6 @@ pub fn generate(
             for part in &target_partitions {
                 let part_path = content_path.join(part);
                 if part_path.is_dir() && has_files(&part_path) {
-                    // Add to overlay layers
                     partition_layers.entry(part.to_string())
                         .or_default()
                         .push(part_path);
@@ -75,12 +71,12 @@ pub fn generate(
                 overlay_ids.insert(module.id.clone());
             } else {
                 if has_meaningful_content(&content_path, &target_partitions) {
+                     // Fallback logic could go here
                 }
             }
         }
     }
 
-    // Construct Overlay Operations
     for (part, layers) in partition_layers {
         plan.overlay_ops.push(OverlayOperation {
             target: format!("/{}", part),
@@ -92,7 +88,6 @@ pub fn generate(
     plan.overlay_module_ids = overlay_ids.into_iter().collect();
     plan.magic_module_ids = magic_ids.into_iter().collect();
 
-    // Sort IDs for consistent reporting
     plan.overlay_module_ids.sort();
     plan.magic_module_ids.sort();
 
@@ -101,7 +96,7 @@ pub fn generate(
 
 fn has_files(path: &Path) -> bool {
     if let Ok(entries) = fs::read_dir(path) {
-        for entry in entries.flatten() {
+        for _ in entries.flatten() {
             return true;
         }
     }

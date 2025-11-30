@@ -13,12 +13,13 @@ pub struct Module {
 
 /// Scans the source directory for enabled modules.
 /// Does not access the runtime storage.
-pub fn scan(source_dir: &Path, config: &config::Config) -> Result<Vec<Module>> {
+pub fn scan(source_dir: &Path, _config: &config::Config) -> Result<Vec<Module>> {
     let mut modules = Vec::new();
     if !source_dir.exists() {
         return Ok(modules);
     }
 
+    // load_module_modes is a standalone function, doesn't need Config instance
     let module_modes = config::load_module_modes();
 
     for entry in fs::read_dir(source_dir)? {
@@ -47,6 +48,8 @@ pub fn scan(source_dir: &Path, config: &config::Config) -> Result<Vec<Module>> {
             mode,
         });
     }
+
+    // Sort by ID descending (Z->A) for OverlayFS priority.
     modules.sort_by(|a, b| b.id.cmp(&a.id));
 
     Ok(modules)
