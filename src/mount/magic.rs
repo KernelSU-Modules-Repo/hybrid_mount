@@ -27,6 +27,13 @@ fn collect_module_files(module_paths: &[PathBuf], extra_partitions: &[String]) -
     let mut system = Node::new_root("system");
     let mut has_file = false;
 
+    const ROOT_PARTITIONS: [(&str, bool); 4] = [
+        ("vendor", true),
+        ("system_ext", true),
+        ("product", true),
+        ("odm", false),
+    ];
+
     for path in module_paths {
         if path.join(DISABLE_FILE_NAME).exists()
             || path.join(REMOVE_FILE_NAME).exists()
@@ -35,37 +42,42 @@ fn collect_module_files(module_paths: &[PathBuf], extra_partitions: &[String]) -
             continue;
         }
 
-        let mod_system = path.join("system");
-        if !mod_system.is_dir() {
-            continue;
-        }
-
         log::debug!("collecting {}", path.display());
 
-        has_file |= system.collect_module_files(&mod_system)?;
+        let mod_system = path.join("system");
+        if mod_system.is_dir() {
+            has_file |= system.collect_module_files(&mod_system)?;
+        }
+
+        for (partition, _) in ROOT_PARTITIONS {
+            let mod_part = path.join(partition);
+            if mod_part.is_dir() {
+                let node = system.children.entry(partition.to_string())
+                    .or_insert_with(|| Node::new_root(partition));
+                
+                has_file |= node.collect_module_files(&mod_part)?;
+            }
+        }
     }
 
     if has_file {
-        const BUILTIN_PARTITIONS: [(&str, bool); 4] = [
-            ("vendor", true),
-            ("system_ext", true),
-            ("product", true),
-            ("odm", false),
-        ];
-
-        for (partition, require_symlink) in BUILTIN_PARTITIONS {
+        for (partition, require_symlink) in ROOT_PARTITIONS {
             let path_of_root = Path::new("/").join(partition);
             let path_of_system = Path::new("/system").join(partition);
-            if path_of_root.is_dir() && (!require_symlink || path_of_system.is_symlink()) {
-                let name = partition.to_string();
-                if let Some(node) = system.children.remove(&name) {
-                    root.children.insert(name, node);
+            
+            if path_of_root.is_dir() {
+                if !require_symlink || path_of_system.is_symlink() {
+                    let name = partition.to_string();
+                    if let Some(node) = system.children.remove(&name) {
+                        log::debug!("promoting partition '{}' to root", name);
+                        root.children.insert(name, node);
+                    }
                 }
             }
         }
 
         for partition in extra_partitions {
-            if BUILTIN_PARTITIONS.iter().any(|(p, _)| p == partition) {
+            if ROOT_PARTITIONS.iter().any(|(p, _)| p == partition) {
                 continue;
             }
             if partition == "system" {
@@ -74,12 +86,12 @@ fn collect_module_files(module_paths: &[PathBuf], extra_partitions: &[String]) -
 
             let path_of_root = Path::new("/").join(partition);
             let path_of_system = Path::new("/system").join(partition);
-            let require_symlink = false;
+            let require_symlink = false; 
 
             if path_of_root.is_dir() && (!require_symlink || path_of_system.is_symlink()) {
                 let name = partition.clone();
                 if let Some(node) = system.children.remove(&name) {
-                    log::debug!("attach extra partition '{name}' to root");
+                    log::debug!("promoting extra partition '{}' to root", name);
                     root.children.insert(name, node);
                 }
             }
@@ -180,7 +192,6 @@ where
                 );
                 mount_bind(module_path, target_path).with_context(|| {
                     if !disable_umount {
-                        // tell ksu about this mount
                         let _ = send_unmountable(target_path);
                     }
                     format!(
@@ -189,7 +200,6 @@ where
                         work_dir_path.display(),
                     )
                 })?;
-                // we should use MS_REMOUNT | MS_BIND | MS_xxx to change mount flags
                 if let Err(e) =
                     mount_remount(target_path, MountFlags::RDONLY | MountFlags::BIND, "")
                 {
@@ -232,7 +242,6 @@ where
                                     .unwrap_or(NodeFileType::Whiteout);
                                 file_type != node.file_type || file_type == NodeFileType::Symlink
                             } else {
-                                // real path not exists
                                 true
                             }
                         }
@@ -365,12 +374,10 @@ where
                             path.display()
                         )
                     })?;
-                // make private to reduce peer group count
                 if let Err(e) = mount_change(&path, MountPropagationFlags::PRIVATE) {
                     log::warn!("make dir {} private: {e:#?}", path.display());
                 }
                 if !disable_umount {
-                    // tell ksu about this one too
                     let _ = send_unmountable(path);
                 }
             }
