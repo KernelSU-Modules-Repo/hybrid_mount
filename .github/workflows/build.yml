@@ -38,7 +38,7 @@ jobs:
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
-          targets: aarch64-linux-android,x86_64-linux-android
+          targets: aarch64-linux-android,x86_64-linux-android,riscv64-linux-android
           components: rust-src
 
       - name: Cache Rust dependencies
@@ -54,20 +54,34 @@ jobs:
       - name: Generate CI Version
         id: version
         run: |
-          # 提取 Cargo.toml 中的基础版本号
           BASE_VER=$(grep '^version =' module/config.toml | cut -d'"' -f2 || echo "v0.0.0")
           if [ -z "$BASE_VER" ]; then BASE_VER="v0.0.0"; fi
           
-          # 生成 CI 版本: v0.2.8-ci.266
           CI_VER="${BASE_VER}-ci.${{ github.run_number }}"
           echo "MODULE_VERSION=$CI_VER" >> $GITHUB_ENV
           echo "Generated Version: $CI_VER"
+
+      - name: Generate WebUI Constants
+        run: |
+          mkdir -p webui/src/lib
+          cat <<EOF > webui/src/lib/constants_gen.js
+          export const RUST_PATHS = {
+            CONFIG: "/data/adb/meta-hybrid/config.toml",
+            MODE_CONFIG: "/data/adb/meta-hybrid/module_mode.conf",
+            IMAGE_MNT: "/data/adb/meta-hybrid/img_mnt",
+            DAEMON_STATE: "/data/adb/meta-hybrid/run/daemon_state.json",
+            DAEMON_LOG: "/data/adb/meta-hybrid/daemon.log",
+          };
+          export const BUILTIN_PARTITIONS = ["system", "vendor", "product", "system_ext", "odm", "oem"];
+          EOF
 
       - name: Build WebUI
         run: |
           cd webui
           npm install
-          npm run build
+          # 修改点：强制指定输出目录为 dist，覆盖项目本身的配置
+          npm run build -- --outDir dist
+          
           if [ ! -d "dist" ]; then echo "Error: WebUI dist not found!"; exit 1; fi
 
       - name: Build Universal Binaries
@@ -81,18 +95,18 @@ jobs:
           WORKDIR="output/module_files"
           mkdir -p "$WORKDIR"
 
-          # 1. 复制基础脚本 (prop, sh, config.toml)
+          # 1. 复制基础脚本
           cp -r module/* "$WORKDIR/"
           
-          # 2. 复制 WebUI
+          # 2. 复制 WebUI (现在 dist 肯定存在了)
           mkdir -p "$WORKDIR/webui"
           cp -r webui/dist/* "$WORKDIR/webui/"
 
-          # 3. 更新 module.prop 版本信息
+          # 3. 更新版本信息
           sed -i "s/^version=.*/version=${{ env.MODULE_VERSION }}/" "$WORKDIR/module.prop"
           sed -i "s/^versionCode=.*/versionCode=${{ github.run_number }}/" "$WORKDIR/module.prop"
 
-          # 4. 打包 Zip (二进制文件已由 xtask 输出到 output/module_files/binaries/)
+          # 4. 打包 Zip
           ZIP_NAME="Meta-Hybrid-${{ env.MODULE_VERSION }}.zip"
           cd "$WORKDIR"
           zip -r "../../output/$ZIP_NAME" .
