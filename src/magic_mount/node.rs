@@ -57,79 +57,9 @@ impl fmt::Display for NodeFileType {
     }
 }
 
-fn print_tree(
-    node: &Node,
-    f: &mut fmt::Formatter<'_>,
-    prefix: &str,
-    is_last: bool,
-    is_root: bool,
-) -> fmt::Result {
-    let connector = if is_root {
-        ""
-    } else if is_last {
-        "└── "
-    } else {
-        "├── "
-    };
-
-    let name = if node.name.is_empty() {
-        "/"
-    } else {
-        &node.name
-    };
-
-    // Collect flags
-    let mut flags = Vec::new();
-    if node.replace {
-        flags.push("REPLACE");
-    }
-    if node.skip {
-        flags.push("SKIP");
-    }
-
-    let flag_str = if flags.is_empty() {
-        String::new()
-    } else {
-        format!(" [{}]", flags.join("|"))
-    };
-
-    // Source path info
-    let source_str = node
-        .module_path
-        .as_ref()
-        .map_or_else(String::new, |p| format!(" -> {}", p.display()));
-
-    // Line format: ├── name [TYPE] [FLAGS] -> /path
-    writeln!(
-        f,
-        "{}{}{} [{}]{}{}",
-        prefix, connector, name, node.file_type, flag_str, source_str
-    )?;
-
-    // Calculate prefix for children
-    let child_prefix = if is_root {
-        ""
-    } else if is_last {
-        "    "
-    } else {
-        "│   "
-    };
-    let new_prefix = format!("{prefix}{child_prefix}");
-
-    // Sort children by name for deterministic logs
-    let mut children: Vec<_> = node.children.values().collect();
-    children.sort_by(|a, b| a.name.cmp(&b.name));
-
-    for (i, child) in children.iter().enumerate() {
-        let is_last_child = i == children.len() - 1;
-        print_tree(child, f, &new_prefix, is_last_child, false)?;
-    }
-    Ok(())
-}
-
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        print_tree(self, f, "", true, true)
+        write!(f, "u need to send '/data/adb/' to developer ")
     }
 }
 
