@@ -11,7 +11,7 @@ export const store = $state({
   storage: { used: '-', size: '-', percent: '0%' },
   systemInfo: { kernel: '-', selinux: '-', mountBase: '-' },
   activePartitions: [], 
-  version: 'v0.2.8', 
+  version: 'v1.0.0-r1', 
 
   loading: { config: false, modules: false, logs: false, status: false },
   saving: { config: false, modules: false },
