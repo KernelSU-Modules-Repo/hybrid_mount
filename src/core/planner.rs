@@ -8,20 +8,27 @@ use crate::core::policy::{ModuleSettings, MountMode};
 pub struct MountPlan {
     pub overlay_targets: HashMap<String, Vec<PathBuf>>,
     pub magic_targets: Vec<(PathBuf, PathBuf)>,
+    pub hymo_targets: Vec<(PathBuf, PathBuf)>,
 }
 
 pub fn generate(modules: &[Module], settings: &ModuleSettings) -> Result<MountPlan> {
     let mut overlay_targets: HashMap<String, Vec<PathBuf>> = HashMap::new();
     let mut magic_targets = Vec::new();
+    let mut hymo_targets = Vec::new();
 
     for module in modules {
         for partition in &module.partitions {
             let mode = settings.get_mode(&module.id, Some(partition));
             let source = module.source_path.join(partition);
+            
             match mode {
                 MountMode::Magic => {
                     let target = PathBuf::from("/").join(partition);
                     magic_targets.push((source, target));
+                }
+                MountMode::Hymo => {
+                    let target = PathBuf::from("/").join(partition);
+                    hymo_targets.push((source, target));
                 }
                 _ => {
                     overlay_targets
@@ -32,10 +39,13 @@ pub fn generate(modules: &[Module], settings: &ModuleSettings) -> Result<MountPl
             }
         }
     }
+
     magic_targets.reverse();
+    hymo_targets.reverse();
 
     Ok(MountPlan {
         overlay_targets,
         magic_targets,
+        hymo_targets,
     })
 }

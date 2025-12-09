@@ -10,6 +10,7 @@ pub enum MountMode {
     Auto,
     Overlay,
     Magic,
+    Hymo,
 }
 
 impl Default for MountMode {
