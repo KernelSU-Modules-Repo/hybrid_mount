@@ -7,21 +7,21 @@ use crate::{defs, conf::config};
 pub struct Module {
     pub id: String,
     pub source_path: PathBuf,
-    pub mode: String,
+    pub partitions: Vec<String>,
 }
-
-/// Scans the source directory for enabled modules.
-/// Does not access the runtime storage.
 pub fn scan(source_dir: &Path, _config: &config::Config) -> Result<Vec<Module>> {
     let mut modules = Vec::new();
     if !source_dir.exists() {
         return Ok(modules);
     }
+    let mut entries: Vec<_> = fs::read_dir(source_dir)?
+        .filter_map(|e| e.ok())
+        .collect();
+    
+    entries.sort_by_key(|e| e.file_name());
+    entries.reverse();
 
-    let module_modes = config::load_module_modes();
-
-    for entry in fs::read_dir(source_dir)? {
-        let entry = entry?;
+    for entry in entries {
         let path = entry.path();
         
         if !path.is_dir() { continue; }
@@ -35,17 +35,20 @@ pub fn scan(source_dir: &Path, _config: &config::Config) -> Result<Vec<Module>> 
            path.join(defs::SKIP_MOUNT_FILE_NAME).exists() { 
             continue; 
         }
-
-        let mode = module_modes.get(&id).cloned().unwrap_or_else(|| "auto".to_string());
-
-        modules.push(Module {
-            id,
-            source_path: path,
-            mode,
-        });
+        let mut partitions = Vec::new();
+        for &part_name in defs::BUILTIN_PARTITIONS {
+            if path.join(part_name).is_dir() {
+                partitions.push(part_name.to_string());
+            }
+        }
+        if !partitions.is_empty() {
+            modules.push(Module {
+                id,
+                source_path: path,
+                partitions,
+            });
+        }
     }
-
-    modules.sort_by(|a, b| b.id.cmp(&a.id));
 
     Ok(modules)
 }
