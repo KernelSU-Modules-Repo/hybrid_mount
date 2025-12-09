@@ -16,7 +16,6 @@
   pointer-events: auto;
   padding: 12px 24px;
   border-radius: 28px;
-  box-shadow: var(--md-sys-elevation-3);
   font-family: var(--md-ref-typeface-plain);
   font-size: 14px;
   font-weight: 500;

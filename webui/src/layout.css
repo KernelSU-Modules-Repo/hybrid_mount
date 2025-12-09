@@ -43,10 +43,12 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+  -ms-overflow-style: none;
 }
 
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 0;
+  height: 0;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--md-sys-color-outline-variant);

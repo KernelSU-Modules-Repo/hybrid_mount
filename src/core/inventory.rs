@@ -1,17 +1,17 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use anyhow::Result;
-use crate::{defs, conf::config, core::policy};
+use crate::{defs, core::policy};
 
 #[derive(Debug, Clone)]
 pub struct Module {
     pub id: String,
     pub source_path: PathBuf,
     pub partitions: Vec<String>,
-    pub mode: String,
+    pub mode: policy::MountMode,
 }
 
-pub fn scan(source_dir: &Path, _config: &config::Config, settings: &policy::ModuleSettings) -> Result<Vec<Module>> {
+pub fn scan(source_dir: &Path, settings: &policy::ModuleSettings) -> Result<Vec<Module>> {
     let mut modules = Vec::new();
     if !source_dir.exists() {
         return Ok(modules);
@@ -45,8 +45,7 @@ pub fn scan(source_dir: &Path, _config: &config::Config, settings: &policy::Modu
             }
         }
 
-        let mode_enum = settings.get_mode(&id, None);
-        let mode = mode_enum.to_string();
+        let mode = settings.get_mode(&id, None);
 
         if !partitions.is_empty() {
             modules.push(Module {

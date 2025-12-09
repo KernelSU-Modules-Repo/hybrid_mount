@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 use anyhow::Result;
 use rayon::prelude::*;
-use crate::{defs, utils, core::inventory::Module};
+use crate::{defs, utils, core::inventory::Module, core::policy};
 
 pub fn perform_sync(modules: &[Module], target_base: &Path) -> Result<()> {
     log::info!("Starting smart module sync to {}", target_base.display());
@@ -11,7 +11,7 @@ pub fn perform_sync(modules: &[Module], target_base: &Path) -> Result<()> {
     prune_orphaned_modules(modules, target_base)?;
 
     modules.par_iter().for_each(|module| {
-        if module.mode == "magic" {
+        if module.mode == policy::MountMode::Magic {
             log::debug!("Skipping sync for Magic Mount module: {}", module.id);
             return;
         }
