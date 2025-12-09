@@ -141,6 +141,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   font-size: 13px;
   font-weight: 500;
   opacity: 0.9;
@@ -159,6 +160,9 @@
 
 .detail-nums {
   font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 11px;
 }
 
 .stats-row {
@@ -183,7 +187,6 @@
 .stat-value {
   font-size: 28px;
   font-weight: 400;
-  /* 恢复使用 primary color，如果需要 on-surface 请改为 var(--md-sys-color-on-surface) */
   color: var(--md-sys-color-primary);
   font-family: var(--md-ref-typeface-plain);
   white-space: nowrap;
@@ -228,7 +231,6 @@
   color: var(--md-sys-color-on-surface);
 }
 
-/* 确保这个类存在 */
 .dot {
   width: 12px;
   height: 12px;
