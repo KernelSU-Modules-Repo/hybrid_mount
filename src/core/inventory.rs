@@ -8,12 +8,16 @@ pub struct Module {
     pub id: String,
     pub source_path: PathBuf,
     pub partitions: Vec<String>,
+    pub mode: String,
 }
+
 pub fn scan(source_dir: &Path, _config: &config::Config) -> Result<Vec<Module>> {
     let mut modules = Vec::new();
     if !source_dir.exists() {
         return Ok(modules);
     }
+    let modes = config::load_module_modes();
+
     let mut entries: Vec<_> = fs::read_dir(source_dir)?
         .filter_map(|e| e.ok())
         .collect();
@@ -41,11 +45,15 @@ pub fn scan(source_dir: &Path, _config: &config::Config) -> Result<Vec<Module>> 
                 partitions.push(part_name.to_string());
             }
         }
+
+        let mode = modes.get(&id).cloned().unwrap_or_else(|| "auto".to_string());
+
         if !partitions.is_empty() {
             modules.push(Module {
                 id,
                 source_path: path,
                 partitions,
+                mode,
             });
         }
     }
