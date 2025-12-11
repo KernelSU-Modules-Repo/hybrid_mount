@@ -1,13 +1,10 @@
-## v1.3.0-r1
+## v1.3.1-r1
 
-Changes since v1.2.0-r3:
-* fix(webui): strip timestamps from log lines and improve level detection
-* fix: restore specific kawaii module description and correct status stats
-* refactor: minor fixes
-* fix: resolve compilation errors and restore missing module logic
-* feat(webui): implement fine-grained rule editor and api integration
-* feat(core): implement rule-based planning and safe fallback logic
-* refactor(core): introduce fine-grained module rules system
-* feat(core): implement conflict detection and dry-run diagnostics
-* feat(hymofs): implement rule deletion and protocol handshake
-* chore(release): bump version to v1.2.0-r3 [skip ci]
+Changes since v1.3.0-r1:
+* fix: remove unused `try_umount.rs` to clean up compiler warnings
+* [skipci]readme(fix): 写的什么傻逼readme迟早有一天给他重写了
+* fix: propagate configured mount source to storage backend setup
+* fix: deduplicate umount requests to prevent system instability
+* style: standardize safe-area-inset handling and remove comments
+* refactor(ui): visually treat unmounted modules as 'None' mode without extra buttons
+* chore(release): bump version to v1.3.0-r1 [skip ci]
