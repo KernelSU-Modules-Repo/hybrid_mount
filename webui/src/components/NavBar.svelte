@@ -2,17 +2,13 @@
   import { store } from '../lib/store.svelte';
   import { ICONS } from '../lib/constants';
   import './NavBar.css';
-
   interface Props {
     activeTab: string;
     onTabChange: (id: string) => void;
   }
-
   let { activeTab, onTabChange }: Props = $props();
-  
   let navContainer = $state<HTMLElement>();
   let tabRefs = $state<Record<string, HTMLButtonElement>>({});
-
   const TABS = [
     { id: 'status', icon: ICONS.home },
     { id: 'config', icon: ICONS.settings },
@@ -20,8 +16,6 @@
     { id: 'logs', icon: ICONS.description },
     { id: 'info', icon: ICONS.info }
   ];
-
-  // Auto-scroll the active tab into view (useful for small screens)
   $effect(() => {
     if (activeTab && tabRefs[activeTab] && navContainer) {
       const tab = tabRefs[activeTab];
@@ -29,7 +23,6 @@
       const tabLeft = tab.offsetLeft;
       const tabWidth = tab.clientWidth;
       const scrollLeft = tabLeft - (containerWidth / 2) + (tabWidth / 2);
-      
       navContainer.scrollTo({
         left: scrollLeft,
         behavior: 'smooth'
@@ -37,7 +30,6 @@
     }
   });
 </script>
-
 <nav class="bottom-nav" bind:this={navContainer}>
   {#each TABS as tab}
     <button 

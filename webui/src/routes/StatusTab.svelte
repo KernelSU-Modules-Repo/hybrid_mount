@@ -6,17 +6,13 @@
   import Skeleton from '../components/Skeleton.svelte';
   import BottomActions from '../components/BottomActions.svelte';
   import './StatusTab.css';
-
   onMount(() => {
     store.loadStatus();
   });
-  
   let displayPartitions = $derived([...new Set([...BUILTIN_PARTITIONS, ...(store.config?.partitions || [])])]);
   let storageLabel = $derived(store.storage?.type === 'tmpfs' ? store.systemInfo?.mountBase : store.L?.status?.storageDesc);
-  
   let mountedCount = $derived(store.modules?.filter(m => m.is_mounted).length ?? 0);
 </script>
-
 <div class="dashboard-grid">
   <div class="storage-card">
     {#if store.loading.status}
@@ -43,33 +39,28 @@
                 </div>
                 <span class="storage-title">{store.L?.status?.storageTitle ?? 'Storage'}</span>
             </div>
-            
             {#if store.storage?.type && store.storage.type !== 'unknown'}
               <span class="storage-type-badge {store.storage.type === 'tmpfs' ? 'type-tmpfs' : 'type-ext4'}">
                 {store.storage.type?.toUpperCase()}
               </span>
              {/if}
         </div>
-
         <div class="storage-value-group">
             <span class="storage-value">{store.storage?.percent ?? '0%'}</span>
             <span class="storage-unit">Used</span>
         </div>
       </div>
-
       <div class="progress-container">
         <div class="progress-track">
             <div class="progress-fill" style="width: {store.storage?.percent ?? '0%'}"></div>
         </div>
       </div>
-      
       <div class="storage-details">
         <span class="detail-path">{storageLabel ?? ''}</span>
         <span class="detail-nums">{store.storage?.used} / {store.storage?.size}</span>
       </div>
     {/if}
   </div>
-
   <div class="stats-row">
     <div class="stat-card">
       {#if store.loading.status}
@@ -80,7 +71,6 @@
         <div class="stat-label">{store.L?.status?.moduleActive ?? 'Active Modules'}</div>
       {/if}
     </div>
-    
     <div class="stat-card">
       {#if store.loading.status}
          <Skeleton width="40px" height="32px" />
@@ -91,7 +81,6 @@
       {/if}
     </div>
   </div>
-
   <div class="mode-card">
     <div class="mode-title">{store.L?.status?.activePartitions ?? 'Partitions'}</div>
     <div class="partition-grid">
@@ -108,7 +97,6 @@
       {/if}
     </div>
   </div>
-
   <div class="mode-card">
     <div class="mode-title">{store.L?.status?.sysInfoTitle ?? 'System Info'}</div>
     <div class="info-grid">
@@ -128,7 +116,6 @@
           <span class="info-val">{store.systemInfo?.selinux || '-'}</span>
         {/if}
       </div>
-      
       <div class="info-item">
         <span class="info-label">HymoFS</span>
         {#if store.loading.status}
@@ -139,7 +126,6 @@
           </span>
         {/if}
       </div>
-
       <div class="info-item full-width">
         <span class="info-label">{store.L?.status?.mountBase ?? 'Mount Base'}</span>
         {#if store.loading.status}
@@ -150,7 +136,6 @@
       </div>
     </div>
   </div>
-
   <div class="mode-card">
     <div class="mode-title" style="margin-bottom: 8px;">{store.L?.status?.modeStats ?? 'Mode Stats'}</div>
     {#if store.loading.status}
@@ -167,9 +152,7 @@
         </div>
         <span class="mode-count">{store.modeStats?.auto ?? 0}</span>
       </div>
-      
       <div class="mode-divider"></div>
-      
       <div class="mode-row">
         <div class="mode-name">
           <div class="dot" style="background-color: var(--md-sys-color-tertiary)"></div>
@@ -177,9 +160,7 @@
         </div>
         <span class="mode-count">{store.modeStats?.magic ?? 0}</span>
       </div>
-
       <div class="mode-divider"></div>
-
       <div class="mode-row">
         <div class="mode-name">
           <div class="dot" style="background-color: var(--md-sys-color-primary)"></div>
@@ -190,7 +171,6 @@
     {/if}
   </div>
 </div>
-
 <BottomActions>
   <div class="spacer"></div>
   <button 

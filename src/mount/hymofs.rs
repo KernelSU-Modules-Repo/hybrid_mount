@@ -2,14 +2,11 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::Path;
-
 use anyhow::{Context, Result};
 use log::{debug, warn};
 use walkdir::WalkDir;
-
 const HYMO_CTL: &str = "/proc/hymo_ctl";
 const EXPECTED_PROTOCOL_VERSION: i32 = 3;
-
 #[derive(Debug, PartialEq)]
 pub enum HymoFsStatus {
     Available,
@@ -17,9 +14,7 @@ pub enum HymoFsStatus {
     KernelTooOld,
     ModuleTooOld,
 }
-
 pub struct HymoFs;
-
 impl HymoFs {
     fn get_protocol_version() -> Option<i32> {
         if let Ok(content) = fs::read_to_string(HYMO_CTL) {
@@ -33,37 +28,30 @@ impl HymoFs {
         }
         None
     }
-
     pub fn check_status() -> HymoFsStatus {
         if !Path::new(HYMO_CTL).exists() {
             return HymoFsStatus::NotPresent;
         }
-
         let kernel_version = match Self::get_protocol_version() {
             Some(v) => v,
             None => return HymoFsStatus::NotPresent,
         };
-
         if kernel_version != EXPECTED_PROTOCOL_VERSION {
             warn!(
                 "HymoFS protocol mismatch! Kernel: {}, Module: {}",
                 kernel_version, EXPECTED_PROTOCOL_VERSION
             );
-
             if kernel_version < EXPECTED_PROTOCOL_VERSION {
                 return HymoFsStatus::KernelTooOld;
             } else {
                 return HymoFsStatus::ModuleTooOld;
             }
         }
-
         HymoFsStatus::Available
     }
-
     pub fn is_available() -> bool {
         Self::check_status() == HymoFsStatus::Available
     }
-
     fn send_cmd(cmd: &str) -> Result<()> {
         let mut file = File::create(HYMO_CTL)
             .with_context(|| format!("Failed to open {}", HYMO_CTL))?;
@@ -71,45 +59,35 @@ impl HymoFs {
         debug!("HymoFS Cmd: {}", cmd);
         Ok(())
     }
-
     pub fn clear() -> Result<()> {
         Self::send_cmd("clear")
     }
-
     pub fn add_rule(src: &Path, target: &Path, file_type: Option<u32>) -> Result<()> {
         let type_str = file_type.unwrap_or(0).to_string();
         let cmd = format!("add {} {} {}", src.display(), target.display(), type_str);
         Self::send_cmd(&cmd)
     }
-
     #[allow(dead_code)]
     pub fn delete_rule(src: &Path) -> Result<()> {
         Self::send_cmd(&format!("delete {}", src.display()))
     }
-
     pub fn hide_path(path: &Path) -> Result<()> {
         Self::send_cmd(&format!("hide {}", path.display()))
     }
-
     pub fn inject_dir(dir: &Path) -> Result<()> {
         Self::send_cmd(&format!("inject {}", dir.display()))
     }
-
     pub fn inject_directory(target_base: &Path, module_dir: &Path) -> Result<()> {
         if !module_dir.exists() || !module_dir.is_dir() {
             return Ok(());
         }
-
         Self::inject_dir(target_base)?;
-
         for entry in WalkDir::new(module_dir).min_depth(1) {
             let entry = entry?;
             let current_path = entry.path();
-            
             let relative_path = current_path.strip_prefix(module_dir)?;
             let target_path = target_base.join(relative_path);
             let file_type = entry.file_type();
-
             if file_type.is_file() {
                 Self::add_rule(&target_path, current_path, Some(8))?;
             } else if file_type.is_symlink() {
@@ -130,12 +108,10 @@ impl HymoFs {
         if !module_dir.exists() || !module_dir.is_dir() {
             return Ok(());
         }
-
         for entry in WalkDir::new(module_dir).min_depth(1) {
             let entry = entry?;
             let relative_path = entry.path().strip_prefix(module_dir)?;
             let target_path = target_base.join(relative_path);
-            
             Self::delete_rule(&target_path)?;
         }
         Ok(())

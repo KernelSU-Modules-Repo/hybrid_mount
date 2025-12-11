@@ -4,10 +4,8 @@
     placeholder?: string;
     onChange?: () => void;
   }
-
   let { values = $bindable([]), placeholder = "Add item...", onChange }: Props = $props();
   let inputValue = $state("");
-
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
       e.preventDefault();
@@ -16,7 +14,6 @@
       removeChip(values.length - 1);
     }
   }
-
   function addChip() {
     const val = inputValue.trim();
     if (val) {
@@ -27,13 +24,11 @@
       inputValue = "";
     }
   }
-
   function removeChip(index: number) {
     values = values.filter((_, i) => i !== index);
     if (onChange) onChange();
   }
 </script>
-
 <div class="chip-input-container">
   {#each values as val, i}
     <span class="chip">
@@ -43,7 +38,6 @@
       </button>
     </span>
   {/each}
-  
   <input 
     type="text" 
     class="chip-input-field" 
@@ -53,14 +47,12 @@
     {placeholder}
     enterkeyhint="done"
   />
-
   {#if inputValue.trim().length > 0}
     <button class="chip-add-btn" onclick={addChip} tabindex="-1" aria-label="Add chip">
       <svg viewBox="0 0 24 24" width="20" height="20"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" fill="currentColor"/></svg>
     </button>
   {/if}
 </div>
-
 <style>
   .chip-input-container {
     display: flex;
@@ -70,20 +62,17 @@
     min-height: 56px;
     max-height: 120px;
     overflow-y: auto;
-    
     background: transparent;
     border: 1px solid var(--md-sys-color-outline);
     border-radius: 8px;
     align-items: center;
     transition: border-color 0.2s;
   }
-
   .chip-input-container:focus-within {
     border-color: var(--md-sys-color-primary);
     border-width: 2px;
     padding: 7px 11px;
   }
-
   .chip {
     display: inline-flex;
     align-items: center;
@@ -97,12 +86,10 @@
     font-family: var(--md-ref-typeface-mono);
     animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
-
   @keyframes scaleIn {
     from { transform: scale(0.8); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
   }
-
   .chip-remove {
     display: flex;
     align-items: center;
@@ -117,12 +104,10 @@
     width: 18px;
     height: 18px;
   }
-
   .chip-remove:hover {
     opacity: 1;
     background-color: rgba(0,0,0,0.1);
   }
-
   .chip-input-field {
     flex: 1;
     min-width: 80px;
@@ -134,12 +119,10 @@
     height: 32px;
     font-family: var(--md-ref-typeface-plain);
   }
-  
   .chip-input-field::placeholder {
     color: var(--md-sys-color-on-surface-variant);
     opacity: 0.7;
   }
-
   .chip-add-btn {
     display: flex;
     align-items: center;
@@ -154,7 +137,6 @@
     height: 28px;
     animation: scaleIn 0.15s ease-out;
   }
-  
   .chip-add-btn:active {
     transform: scale(0.9);
   }

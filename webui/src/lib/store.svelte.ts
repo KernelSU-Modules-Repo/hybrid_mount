@@ -12,14 +12,11 @@ import type {
   LanguageOption,
   ModeStats
 } from './types';
-
 const localeModules = import.meta.glob('../locales/*.json', { eager: true });
-
 export interface LogEntry {
   text: string;
   type: 'info' | 'warn' | 'error' | 'debug';
 }
-
 const createStore = () => {
   let theme = $state<'auto' | 'light' | 'dark'>('auto');
   let isSystemDark = $state(false);
@@ -27,7 +24,6 @@ const createStore = () => {
   let seed = $state<string | null>(DEFAULT_SEED);
   let loadedLocale = $state<any>(null);
   let toast = $state<ToastMessage>({ id: 'init', text: '', type: 'info', visible: false });
-
   const availableLanguages: LanguageOption[] = Object.entries(localeModules).map(([path, mod]: [string, any]) => {
     const match = path.match(/\/([^/]+)\.json$/);
     const code = match ? match[1] : 'en';
@@ -38,11 +34,9 @@ const createStore = () => {
     if (b.code === 'en') return 1;
     return a.name.localeCompare(b.name);
   });
-
   let config = $state<AppConfig>(DEFAULT_CONFIG);
   let modules = $state<Module[]>([]);
   let logs = $state<LogEntry[]>([]);
-  
   let device = $state<DeviceInfo>({ model: '-', android: '-', kernel: '-', selinux: '-' });
   let version = $state(APP_VERSION);
   let storage = $state<StorageStatus>({ 
@@ -54,29 +48,23 @@ const createStore = () => {
   });
   let systemInfo = $state<SystemInfo>({ kernel: '-', selinux: '-', mountBase: '-', activeMounts: [] });
   let activePartitions = $state<string[]>([]);
-
   let loadingConfig = $state(false);
   let loadingModules = $state(false);
   let loadingLogs = $state(false);
   let loadingStatus = $state(false);
-  
   let savingConfig = $state(false);
   let savingModules = $state(false);
-
   let L = $derived(loadedLocale?.default || {});
-
   let modeStats = $derived.by((): ModeStats => {
     const stats = { auto: 0, magic: 0, hymofs: 0 };
     modules.forEach(m => {
         if (!m.is_mounted) return;
-        
         if (m.mode === 'auto') stats.auto++;
         else if (m.mode === 'magic') stats.magic++;
         else if (m.mode === 'hymofs') stats.hymofs++;
     });
     return stats;
   });
-
   function showToast(text: string, type: 'info' | 'success' | 'error' = 'info') {
     const id = Date.now().toString();
     toast = { id, text, type, visible: true };
@@ -86,18 +74,15 @@ const createStore = () => {
       }
     }, 3000);
   }
-
   function setTheme(t: 'auto' | 'light' | 'dark') {
     theme = t;
     applyTheme();
   }
-
   function applyTheme() {
     const isDark = theme === 'auto' ? isSystemDark : theme === 'dark';
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     Monet.apply(seed, isDark);
   }
-
   async function loadLocale(code: string) {
     const match = Object.entries(localeModules).find(([path]) => path.endsWith(`/${code}.json`));
     if (match) {
@@ -106,40 +91,33 @@ const createStore = () => {
         loadedLocale = localeModules['../locales/en.json'];
     }
   }
-
   function setLang(code: string) {
     lang = code;
     localStorage.setItem('lang', code);
     loadLocale(code);
   }
-
   async function init() {
     const savedLang = localStorage.getItem('lang') || 'en';
     lang = savedLang;
     await loadLocale(savedLang);
-
     const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
     isSystemDark = darkModeQuery.matches;
     darkModeQuery.addEventListener('change', (e) => {
       isSystemDark = e.matches;
       applyTheme();
     });
-
     try {
         const sysColor = await API.fetchSystemColor();
         if (sysColor) {
             seed = sysColor;
         }
     } catch {}
-    
     applyTheme();
-    
     await Promise.all([
       loadConfig(),
       loadStatus()
     ]);
   }
-
   async function loadConfig() {
     loadingConfig = true;
     try {
@@ -149,7 +127,6 @@ const createStore = () => {
     }
     loadingConfig = false;
   }
-
   async function saveConfig() {
     savingConfig = true;
     try {
@@ -160,7 +137,6 @@ const createStore = () => {
     }
     savingConfig = false;
   }
-
   async function loadModules() {
     loadingModules = true;
     try {
@@ -170,7 +146,6 @@ const createStore = () => {
     }
     loadingModules = false;
   }
-
   async function saveModules() {
     savingModules = true;
     try {
@@ -181,20 +156,16 @@ const createStore = () => {
     }
     savingModules = false;
   }
-
   async function loadLogs(silent: boolean = false) {
     if (!silent) loadingLogs = true;
     try {
       const rawLogs = await API.readLogs();
       logs = rawLogs.split('\n').map(line => {
-        // Strip timestamps (e.g. 2023-12-01T12:00:00Z or 2023-12-01 12:00:00)
         const text = line.replace(/^[\d-]{10}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?\s*/, '');
-        
         let type: LogEntry['type'] = 'info';
         if (text.includes('[E]') || text.includes('[ERROR]')) type = 'error';
         else if (text.includes('[W]') || text.includes('[WARN]')) type = 'warn';
         else if (text.includes('[D]') || text.includes('[DEBUG]')) type = 'debug';
-        
         return { text, type };
       });
     } catch (e) {
@@ -202,7 +173,6 @@ const createStore = () => {
     }
     loadingLogs = false;
   }
-
   async function loadStatus() {
     loadingStatus = true;
     try {
@@ -211,14 +181,12 @@ const createStore = () => {
       storage = await API.getStorageUsage();
       systemInfo = await API.getSystemInfo();
       activePartitions = systemInfo.activeMounts || [];
-      
       if (modules.length === 0) {
         await loadModules();
       }
     } catch (e) {}
     loadingStatus = false;
   }
-
   return {
     get theme() { return theme; },
     get isSystemDark() { return isSystemDark; },
@@ -232,28 +200,23 @@ const createStore = () => {
     setTheme,
     setLang,
     init,
-
     get config() { return config; },
     set config(v) { config = v; },
     loadConfig,
     saveConfig,
-
     get modules() { return modules; },
     set modules(v) { modules = v; },
     get modeStats() { return modeStats; },
     loadModules,
     saveModules,
-
     get logs() { return logs; },
     loadLogs,
-
     get device() { return device; },
     get version() { return version; },
     get storage() { return storage; },
     get systemInfo() { return systemInfo; },
     get activePartitions() { return activePartitions; },
     loadStatus,
-
     get loading() {
       return {
         config: loadingConfig,
@@ -270,5 +233,4 @@ const createStore = () => {
     }
   };
 };
-
 export const store = createStore();

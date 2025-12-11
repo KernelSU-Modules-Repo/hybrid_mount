@@ -4,7 +4,6 @@
   gap: 12px;
   padding-bottom: 24px;
 }
-
 .rule-card {
   background: var(--md-sys-color-surface-container-low);
   border-radius: 24px;
@@ -14,26 +13,21 @@
   cursor: pointer;
   position: relative;
 }
-
 .rule-card:hover {
   background: var(--md-sys-color-surface-container);
 }
-
 .rule-card.expanded {
   background: var(--md-sys-color-surface-container);
 }
-
 .rule-card.dirty {
   border: 1px solid var(--md-sys-color-primary);
 }
-
 .rule-card.unmounted {
     opacity: 0.8;
 }
 .rule-card.unmounted.expanded {
     opacity: 1;
 }
-
 .rule-main {
   padding: 20px;
   display: flex;
@@ -41,7 +35,6 @@
   justify-content: space-between;
   gap: 16px;
 }
-
 .rule-info {
   display: flex;
   align-items: center;
@@ -49,14 +42,12 @@
   flex: 1;
   min-width: 0;
 }
-
 .info-col {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
-
 .module-name {
   font-weight: 500;
   font-size: 16px;
@@ -66,7 +57,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .module-id {
   font-size: 13px;
   color: var(--md-sys-color-on-surface-variant);
@@ -76,13 +66,11 @@
   text-overflow: ellipsis;
   opacity: 0.8;
 }
-
 .version-tag {
   opacity: 0.6;
   margin-left: 8px;
   font-size: 12px;
 }
-
 .mode-badge {
   font-size: 12px;
   font-weight: 500;
@@ -95,41 +83,34 @@
   align-items: center;
   gap: 6px;
 }
-
 .badge-auto {
   background-color: var(--md-sys-color-secondary-container);
   color: var(--md-sys-color-on-secondary-container);
 }
-
 .badge-magic {
   background-color: var(--md-sys-color-tertiary-container);
   color: var(--md-sys-color-on-tertiary-container);
 }
-
 .badge-none {
   background-color: var(--md-sys-color-surface-container-highest);
   color: var(--md-sys-color-outline);
 }
-
 .rule-details {
   padding: 0 20px 20px 20px;
   border-top: 1px solid rgba(0,0,0,0.05);
 }
-
 .module-desc {
   margin: 16px 0 12px 0;
   font-size: 15px;
   color: var(--md-sys-color-on-surface-variant);
   line-height: 1.6;
 }
-
 .module-meta {
   margin: 0;
   font-size: 13px;
   color: var(--md-sys-color-outline);
   font-family: var(--md-ref-typeface-mono);
 }
-
 .status-alert {
     display: flex;
     align-items: center;
@@ -141,37 +122,31 @@
     border-radius: 8px;
     margin-top: 12px;
 }
-
 .config-section {
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px dashed var(--md-sys-color-outline-variant);
 }
-
 .config-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
 }
-
 .config-label {
   font-size: 15px;
   font-weight: 500;
   color: var(--md-sys-color-on-surface);
 }
-
 .compact-select {
   width: 160px;
   margin-bottom: 0;
 }
-
 .compact-select input, 
 .compact-select select {
   height: 48px;
   border-radius: 12px;
 }
-
 .search-container {
   display: flex;
   align-items: center;
@@ -192,18 +167,15 @@
   top: 0;
   z-index: 20;
 }
-
 .search-container:focus-within {
   background-color: var(--md-sys-color-surface-container-highest);
 }
-
 .search-icon {
   width: 24px;
   height: 24px;
   fill: var(--md-sys-color-on-surface);
   flex-shrink: 0; 
 }
-
 .search-input {
   flex: 1;
   border: none;
@@ -214,33 +186,28 @@
   outline: none;
   min-width: 0; 
 }
-
 .search-input::placeholder {
   color: var(--md-sys-color-on-surface-variant);
   opacity: 0.7;
 }
-
 .filter-controls {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
 }
-
 .checkbox-wrapper {
     display: flex;
     align-items: center;
     gap: 8px;
     cursor: pointer;
 }
-
 .checkbox-wrapper input[type="checkbox"] {
     width: 18px;
     height: 18px;
     accent-color: var(--md-sys-color-primary);
     cursor: pointer;
 }
-
 .checkbox-wrapper label {
     font-size: 13px;
     color: var(--md-sys-color-on-surface-variant);
@@ -248,14 +215,12 @@
     cursor: pointer;
     white-space: nowrap;
 }
-
 .vertical-divider {
     width: 1px;
     height: 24px;
     background-color: var(--md-sys-color-outline-variant);
     opacity: 0.5;
 }
-
 .filter-label-text {
   font-size: 13px;
   color: var(--md-sys-color-on-surface-variant);
@@ -265,7 +230,6 @@
 @media (min-width: 600px) {
     .filter-label-text { display: block; }
 }
-
 .filter-select {
   background: transparent;
   border: none;
@@ -277,56 +241,47 @@
   cursor: pointer;
   height: 100%;
 }
-
 .desc-card {
   padding: 16px;
 }
-
 .desc-text {
   margin: 0;
   font-size: 14px;
   color: var(--md-sys-color-on-surface-variant);
   line-height: 1.5;
 }
-
 .skeleton-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
   width: 100%;
 }
-
 .empty-state {
   text-align: center;
   padding: 48px 24px;
   opacity: 0.6;
 }
-
 .paths-editor {
   margin-top: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-
 .paths-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-
 .path-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-
 .path-row {
   display: flex;
   gap: 8px;
   align-items: center;
 }
-
 .path-input {
   flex: 1;
   height: 40px;
@@ -336,7 +291,6 @@
   background: transparent;
   color: var(--md-sys-color-on-surface);
 }
-
 .path-mode-select {
   width: 100px;
   height: 40px;
@@ -345,7 +299,6 @@
   background: transparent;
   color: var(--md-sys-color-on-surface);
 }
-
 .btn-icon.add-rule {
   width: 32px;
   height: 32px;
@@ -358,16 +311,13 @@
   padding: 0;
   transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
 }
-
 .btn-icon.add-rule:hover {
   transform: scale(1.05);
   filter: brightness(0.95);
 }
-
 .btn-icon.add-rule:active {
   transform: scale(0.95);
 }
-
 .btn-icon.delete {
   color: var(--md-sys-color-error);
   background: transparent;
@@ -378,7 +328,6 @@
   justify-content: center;
   padding: 8px;
 }
-
 .empty-paths {
   font-size: 13px;
   color: var(--md-sys-color-on-surface-variant);

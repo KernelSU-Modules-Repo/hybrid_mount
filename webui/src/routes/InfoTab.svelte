@@ -5,13 +5,11 @@
   import { ICONS } from '../lib/constants';
   import './InfoTab.css';
   import Skeleton from '../components/Skeleton.svelte';
-
   const REPO_OWNER = 'YuzakiKokuban';
   const REPO_NAME = 'meta-hybrid_mount';
-  const DONATE_LINK = `https://github.com/sponsors/${REPO_OWNER}`; 
+  const DONATE_LINK = `https:
   const CACHE_KEY = 'hm_contributors_cache';
   const CACHE_DURATION = 1000 * 60 * 60;
-
   interface Contributor {
     login: string;
     avatar_url: string;
@@ -21,13 +19,10 @@
     name?: string;
     bio?: string;
   }
-
   let contributors = $state<Contributor[]>([]);
   let loading = $state(true);
   let error = $state(false);
-  
   let version = $state(store.version);
-
   onMount(async () => {
     try {
         const v = await API.getVersion();
@@ -35,10 +30,8 @@
     } catch (e) {
         console.error("Failed to fetch version", e);
     }
-
     await fetchContributors();
   });
-
   async function fetchContributors() {
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
@@ -53,18 +46,15 @@
         localStorage.removeItem(CACHE_KEY);
       }
     }
-
     try {
-      const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contributors`);
+      const res = await fetch(`https:
       if (!res.ok) throw new Error('Failed to fetch list');
-      
       const basicList = await res.json();
       const filteredList = basicList.filter((user: Contributor) => {
         const isBotType = user.type === 'Bot';
         const hasBotName = user.login.toLowerCase().includes('bot');
         return !isBotType && !hasBotName;
       });
-
       const detailPromises = filteredList.map(async (user: Contributor) => {
         try {
             const detailRes = await fetch(user.url);
@@ -77,7 +67,6 @@
         }
         return user;
       });
-
       contributors = await Promise.all(detailPromises);
       localStorage.setItem(CACHE_KEY, JSON.stringify({
         data: contributors,
@@ -90,15 +79,12 @@
       loading = false;
     }
   }
-
   function handleLink(e: Event, url: string) {
     e.preventDefault();
     API.openLink(url);
   }
 </script>
-
 <div class="info-container">
-  
   <div class="project-header">
     <div class="app-logo">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
@@ -129,15 +115,13 @@
     <span class="app-name">{store.L.common.appName}</span>
     <span class="app-version">{version}</span>
   </div>
-
   <div class="action-grid">
-    <a href={`https://github.com/${REPO_OWNER}/${REPO_NAME}`} 
+    <a href={`https:
        class="action-card" 
-       onclick={(e) => handleLink(e, `https://github.com/${REPO_OWNER}/${REPO_NAME}`)}>
+       onclick={(e) => handleLink(e, `https:
         <svg viewBox="0 0 24 24" class="action-icon"><path d={ICONS.github} /></svg>
         <span class="action-label">{store.L.info.projectLink}</span>
     </a>
-  
     <a href={DONATE_LINK} 
        class="action-card"
        onclick={(e) => handleLink(e, DONATE_LINK)}>
@@ -145,10 +129,8 @@
         <span class="action-label">{store.L.info.donate}</span>
     </a>
   </div>
-
   <div>
     <div class="section-title">{store.L.info.contributors}</div>
-    
     <div class="contributors-list">
         {#if loading}
             {#each Array(3) as _}
@@ -184,5 +166,4 @@
         {/if}
     </div>
   </div>
-
 </div>

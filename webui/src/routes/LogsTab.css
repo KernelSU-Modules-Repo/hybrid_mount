@@ -4,26 +4,21 @@
   gap: 12px;
   margin-bottom: 16px;
   background-color: var(--md-sys-color-surface-container);
-  /* Full Pill Shape for controls */
   border-radius: 9999px; 
   padding: 0 20px;
-  /* Taller touch target */
   height: 56px; 
   box-shadow: none;
   transition: background-color 0.2s;
 }
-
 .logs-controls:focus-within {
   background-color: var(--md-sys-color-surface-container-high);
 }
-
 .log-search-icon {
   fill: var(--md-sys-color-on-surface-variant);
   flex-shrink: 0;
   width: 20px;
   height: 20px;
 }
-
 .log-search-input {
   flex: 1;
   border: none;
@@ -35,26 +30,22 @@
   min-width: 0;
   font-family: var(--md-ref-typeface-plain);
 }
-
 .log-search-input::placeholder {
   color: var(--md-sys-color-on-surface-variant);
   opacity: 0.7;
 }
-
 .log-auto-group {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-right: 4px;
 }
-
 .log-auto-checkbox {
   accent-color: var(--md-sys-color-primary);
   width: 18px; 
   height: 18px;
   cursor: pointer;
 }
-
 .log-auto-label {
   font-size: 13px;
   color: var(--md-sys-color-on-surface-variant);
@@ -62,7 +53,6 @@
   white-space: nowrap;
   font-weight: 500;
 }
-
 .log-divider {
   height: 24px;
   width: 1px;
@@ -70,14 +60,12 @@
   margin: 0 12px;
   opacity: 0.5;
 }
-
 .log-filter-label {
   font-size: 13px;
   color: var(--md-sys-color-on-surface-variant);
   white-space: nowrap;
-  display: none; /* Hide label to save space on mobile, concise look */
+  display: none;  
 }
-
 .log-filter-select {
   background: transparent;
   border: none;
@@ -89,17 +77,15 @@
   padding-left: 4px;
   height: 100%;
 }
-
 .log-container {
-  background-color: var(--md-sys-color-surface-container-low); /* Slightly darker/distinct for code */
-  /* Expressive Corner Radius */
+  background-color: var(--md-sys-color-surface-container-low);  
   border-radius: 24px; 
   padding: 20px;
   font-family: var(--md-ref-typeface-mono);
   font-size: 12px;
   color: var(--md-sys-color-on-surface-variant);
   border: none;
-  height: calc(100vh - 360px); /* Adjust based on new header heights */
+  height: calc(100vh - 360px);  
   min-height: 300px;
   overflow-y: auto;
   white-space: pre-wrap;
@@ -107,31 +93,26 @@
   scroll-behavior: smooth;
   box-shadow: none;
 }
-
 .log-skeleton-container {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-
 .log-entry {
   margin-bottom: 6px;
   line-height: 1.6;
   display: block;
   border-bottom: 1px solid transparent;
 }
-
 .log-info { color: var(--md-sys-color-primary); }
 .log-warn { color: var(--md-sys-color-tertiary); }
 .log-debug { color: var(--md-sys-color-secondary); opacity: 0.8; }
 .log-error { color: var(--md-sys-color-error); font-weight: 600; }
-
 .log-empty-state {
   padding: 60px 20px;
   text-align: center;
   opacity: 0.6;
 }
-
 .log-footer {
   text-align: center;
   padding: 16px;
@@ -140,7 +121,6 @@
   border-top: none;
   margin-top: 8px;
 }
-
 .scroll-fab {
   position: sticky;
   bottom: 24px;
@@ -149,7 +129,6 @@
   background: var(--md-sys-color-primary-container);
   color: var(--md-sys-color-on-primary-container);
   border: none;
-  /* Full pill shape */
   border-radius: 9999px; 
   padding: 10px 20px;
   display: flex;
@@ -161,17 +140,14 @@
   z-index: 10;
   transition: transform 0.2s, box-shadow 0.2s;
 }
-
 .scroll-fab:active {
   transform: translateX(-50%) scale(0.95);
 }
-
 .scroll-icon {
   width: 18px;
   height: 18px;
   fill: currentColor;
 }
-
 .spacer {
   flex: 1;
 }

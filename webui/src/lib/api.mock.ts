@@ -1,21 +1,16 @@
 import { APP_VERSION } from './constants_gen';
 import { DEFAULT_CONFIG } from './constants';
 import type { AppConfig, DeviceInfo, Module, StorageStatus, SystemInfo, ModuleRules } from './types';
-
-// Mock delay to simulate network latency
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 export const MockAPI = {
   async loadConfig(): Promise<AppConfig> {
     await delay(300);
     return { ...DEFAULT_CONFIG };
   },
-
   async saveConfig(config: AppConfig): Promise<void> {
     await delay(500);
     console.log('[Mock] Config saved:', config);
   },
-
   async scanModules(dir: string): Promise<Module[]> {
     await delay(600);
     return [
@@ -60,17 +55,13 @@ export const MockAPI = {
       }
     ];
   },
-
   async saveModuleRules(moduleId: string, rules: ModuleRules): Promise<void> {
     await delay(400);
     console.log(`[Mock] Rules saved for ${moduleId}:`, rules);
   },
-
-  // Deprecated but kept for interface compatibility if strictly typed elsewhere
   async saveModules(modules: Module[]): Promise<void> {
     console.warn("[Mock] saveModules is deprecated");
   },
-
   async readLogs(): Promise<string> {
     await delay(200);
     return `[I] Daemon started at ${new Date().toISOString()}
@@ -81,7 +72,6 @@ export const MockAPI = {
 [E] Failed to mount /system/app/TestApp: No such file or directory
 [I] Daemon ready`;
   },
-
   async getDeviceStatus(): Promise<DeviceInfo> {
     await delay(300);
     return {
@@ -91,12 +81,10 @@ export const MockAPI = {
       selinux: 'Enforcing'
     };
   },
-
   async getVersion(): Promise<string> {
     await delay(100);
     return APP_VERSION;
   },
-
   async getStorageUsage(): Promise<StorageStatus> {
     await delay(300);
     return {
@@ -107,7 +95,6 @@ export const MockAPI = {
       hymofs_available: true
     };
   },
-
   async getSystemInfo(): Promise<SystemInfo> {
     await delay(300);
     return {
@@ -117,12 +104,10 @@ export const MockAPI = {
       activeMounts: ['system', 'product']
     };
   },
-
   async fetchSystemColor(): Promise<string | null> {
     await delay(100);
     return '#8AB4F8';
   },
-
   openLink(url: string): void {
     console.log('[Mock] Opening link:', url);
     window.open(url, '_blank');

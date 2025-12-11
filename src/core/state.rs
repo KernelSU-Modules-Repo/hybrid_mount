@@ -4,7 +4,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use crate::defs;
-
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct RuntimeState {
     pub timestamp: u64,
@@ -27,7 +26,6 @@ pub struct RuntimeState {
     #[serde(default)]
     pub hymofs_available: bool,
 }
-
 impl RuntimeState {
     pub fn new(
         storage_mode: String, 
@@ -43,7 +41,6 @@ impl RuntimeState {
         let start = SystemTime::now();
         let timestamp = start.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
         let pid = std::process::id();
-
         Self {
             timestamp,
             pid,
@@ -60,13 +57,11 @@ impl RuntimeState {
             hymofs_available,
         }
     }
-
     pub fn save(&self) -> Result<()> {
         let json = serde_json::to_string_pretty(self)?;
         fs::write(defs::STATE_FILE, json)?;
         Ok(())
     }
-
     pub fn load() -> Result<Self> {
         if !std::path::Path::new(defs::STATE_FILE).exists() {
             return Ok(Self::default());

@@ -5,7 +5,6 @@ use std::{
     collections::hash_map::Entry,
     collections::{HashMap, HashSet},
 };
-
 use anyhow::{Context, Result, bail};
 use rayon::prelude::*;
 use rustix::{
@@ -15,30 +14,25 @@ use rustix::{
         mount_move, mount_remount, unmount,
     },
 };
-
 use crate::{
     defs::{DISABLE_FILE_NAME, REMOVE_FILE_NAME, SKIP_MOUNT_FILE_NAME},
     mount::node::{Node, NodeFileType},
     utils::{ensure_dir_exists, lgetfilecon, lsetfilecon},
 };
-
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::utils::send_unmountable;
-
 const ROOT_PARTITIONS: [&str; 4] = [
     "vendor",
     "system_ext",
     "product",
     "odm",
 ];
-
 fn merge_nodes(high: &mut Node, low: Node) {
     if high.module_path.is_none() {
         high.module_path = low.module_path;
         high.file_type = low.file_type;
         high.replace = low.replace;
     }
-
     for (name, low_child) in low.children {
         match high.children.entry(name) {
             Entry::Vacant(v) => {
@@ -50,7 +44,6 @@ fn merge_nodes(high: &mut Node, low: Node) {
         }
     }
 }
-
 fn process_module(
     path: &Path, 
     extra_partitions: &[String],
@@ -58,14 +51,12 @@ fn process_module(
 ) -> Result<(Node, Node)> {
     let mut root = Node::new_root("");
     let mut system = Node::new_root("system");
-
     if path.join(DISABLE_FILE_NAME).exists()
         || path.join(REMOVE_FILE_NAME).exists()
         || path.join(SKIP_MOUNT_FILE_NAME).exists()
     {
         return Ok((root, system));
     }
-
     let is_excluded = |part: &str| -> bool {
         if let Some(list) = exclusion_list {
             list.contains(part)
@@ -73,49 +64,39 @@ fn process_module(
             false
         }
     };
-
     if !is_excluded("system") {
         let mod_system = path.join("system");
         if mod_system.is_dir() {
             system.collect_module_files(&mod_system)?;
         }
     }
-
     for partition in ROOT_PARTITIONS {
         if is_excluded(partition) {
             continue;
         }
-
         let mod_part = path.join(partition);
         if mod_part.is_dir() {
             let node = system.children.entry(partition.to_string())
                 .or_insert_with(|| Node::new_root(partition));
-            
             if node.file_type == NodeFileType::Symlink {
                 node.file_type = NodeFileType::Directory;
                 node.module_path = None;
             }
-
             node.collect_module_files(&mod_part)?;
         }
     }
-
     for partition in extra_partitions {
         if ROOT_PARTITIONS.contains(&partition.as_str()) || partition == "system" {
             continue;
         }
-
         if is_excluded(partition) {
             continue;
         }
-
         let path_of_root = Path::new("/").join(partition);
         let path_of_system = Path::new("/system").join(partition);
-
         if path_of_root.is_dir() && path_of_system.is_symlink() {
             let name = partition.clone();
             let mod_part = path.join(partition);
-            
             if mod_part.is_dir() {
                 let node = root.children.entry(name)
                     .or_insert_with(|| Node::new_root(partition));
@@ -131,10 +112,8 @@ fn process_module(
             }
         }
     }
-
     Ok((root, system))
 }
-
 fn collect_module_files(
     module_paths: &[PathBuf], 
     extra_partitions: &[String],
@@ -155,9 +134,7 @@ fn collect_module_files(
                 Ok((r_a, s_a))
             }
         )?;
-
     let has_content = !final_root.children.is_empty() || !final_system.children.is_empty();
-
     if has_content {
         const BUILTIN_CHECKS: [(&str, bool); 4] = [
             ("vendor", true),
@@ -165,11 +142,9 @@ fn collect_module_files(
             ("product", true),
             ("odm", false),
         ];
-
         for (partition, require_symlink) in BUILTIN_CHECKS {
             let path_of_root = Path::new("/").join(partition);
             let path_of_system = Path::new("/system").join(partition);
-
             if path_of_root.is_dir() && (!require_symlink || path_of_system.is_symlink()) {
                 let name = partition.to_string();
                 if let Some(node) = final_system.children.remove(&name) {
@@ -177,14 +152,12 @@ fn collect_module_files(
                 }
             }
         }
-
         final_root.children.insert("system".to_string(), final_system);
         Ok(Some(final_root))
     } else {
         Ok(None)
     }
 }
-
 fn clone_symlink<S>(src: S, dst: S) -> Result<()>
 where
     S: AsRef<Path>,
@@ -194,7 +167,6 @@ where
     lsetfilecon(dst.as_ref(), lgetfilecon(src.as_ref())?.as_str())?;
     Ok(())
 }
-
 fn mount_mirror<P>(path: P, work_dir_path: P, entry: &DirEntry) -> Result<()>
 where
     P: AsRef<Path>,
@@ -202,7 +174,6 @@ where
     let path = path.as_ref().join(entry.file_name());
     let work_dir_path = work_dir_path.as_ref().join(entry.file_name());
     let file_type = entry.file_type()?;
-
     if file_type.is_file() {
         fs::File::create(&work_dir_path)?;
         mount_bind(&path, &work_dir_path)?;
@@ -215,7 +186,6 @@ where
             Some(Uid::from_raw(metadata.uid())),
             Some(Gid::from_raw(metadata.gid())),
         )?;
-        
         lsetfilecon(&work_dir_path, lgetfilecon(&path)?.as_str())?;
         for entry in read_dir(&path)?.flatten() {
             mount_mirror(&path, &work_dir_path, &entry)?;
@@ -223,10 +193,8 @@ where
     } else if file_type.is_symlink() {
         clone_symlink(&path, &work_dir_path)?;
     }
-
     Ok(())
 }
-
 struct MagicMount {
     node: Node,
     path: PathBuf,
@@ -235,7 +203,6 @@ struct MagicMount {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     umount: bool,
 }
-
 impl MagicMount {
     fn new<P>(
         node: &Node,
@@ -256,7 +223,6 @@ impl MagicMount {
             umount,
         }
     }
-
     fn check_tmpfs(&mut self) {
         for it in &mut self.node.children {
             let (name, node) = it;
@@ -287,7 +253,6 @@ impl MagicMount {
             }
         }
     }
-
     fn do_magic_mount(&mut self) -> Result<()> {
         match self.node.file_type {
             NodeFileType::RegularFile => self.handle_regular_file(),
@@ -299,7 +264,6 @@ impl MagicMount {
             }
         }
     }
-
     fn handle_regular_file(&self) -> Result<()> {
         let target_path = if self.has_tmpfs {
             fs::File::create(&self.work_dir_path)?;
@@ -332,27 +296,21 @@ impl MagicMount {
             bail!("cannot mount root file {}!", self.path.display());
         }
     }
-
     fn handle_directory(&mut self) -> Result<()> {
         let mut create_tmpfs =
             !self.has_tmpfs && self.node.replace && self.node.module_path.is_some();
-
         if !self.has_tmpfs && !create_tmpfs {
             self.check_tmpfs();
             create_tmpfs = self.has_tmpfs;
         }
-
         let has_tmpfs = self.has_tmpfs || create_tmpfs;
-
         if has_tmpfs {
             log::debug!(
                 "creating tmpfs skeleton for {} at {}",
                 self.path.display(),
                 self.work_dir_path.display()
             );
-
             let _ = create_dir_all(&self.work_dir_path);
-
             let (metadata, path) = {
                 if self.path.exists() {
                     (self.path.metadata()?, &self.path)
@@ -362,7 +320,6 @@ impl MagicMount {
                     bail!("cannot mount root dir {}!", self.path.display());
                 }
             };
-
             chmod(&self.work_dir_path, Mode::from_raw_mode(metadata.mode()))?;
             chown(
                 &self.work_dir_path,
@@ -371,14 +328,12 @@ impl MagicMount {
             )?;
             lsetfilecon(&self.work_dir_path, lgetfilecon(path)?.as_str())?;
         }
-
         if create_tmpfs {
             log::debug!(
                 "creating tmpfs for {} at {}",
                 self.path.display(),
                 self.work_dir_path.display()
             );
-
             mount_bind(&self.work_dir_path, &self.work_dir_path)
                 .context("bind self")
                 .with_context(|| {
@@ -389,7 +344,6 @@ impl MagicMount {
                     )
                 })?;
         }
-
         if self.path.exists() && !self.node.replace {
             for entry in self.path.read_dir()?.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
@@ -398,7 +352,6 @@ impl MagicMount {
                         if node.skip {
                             continue;
                         }
-
                         Self::new(
                             &node,
                             &self.path,
@@ -416,7 +369,6 @@ impl MagicMount {
                         Ok(())
                     }
                 };
-
                 if let Err(e) = result {
                     if has_tmpfs {
                         return Err(e);
@@ -425,7 +377,6 @@ impl MagicMount {
                 }
             }
         }
-
         if self.node.replace {
             if self.node.module_path.is_none() {
                 bail!(
@@ -433,15 +384,12 @@ impl MagicMount {
                     self.path.display()
                 );
             }
-
             log::debug!("dir {} is replaced", self.path.display());
         }
-
         for (name, node) in &self.node.children {
             if node.skip {
                 continue;
             }
-
             if let Err(e) = Self::new(
                 node,
                 &self.path,
@@ -456,18 +404,15 @@ impl MagicMount {
                 if has_tmpfs {
                     return Err(e);
                 }
-
                 log::error!("mount child {}/{name} failed: {e:#?}", self.path.display());
             }
         }
-
         if create_tmpfs {
             log::debug!(
                 "moving tmpfs {} -> {}",
                 self.work_dir_path.display(),
                 self.path.display()
             );
-
             if let Err(e) = mount_remount(
                 &self.work_dir_path,
                 MountFlags::RDONLY | MountFlags::BIND,
@@ -487,7 +432,6 @@ impl MagicMount {
             if let Err(e) = mount_change(&self.path, MountPropagationFlags::PRIVATE) {
                 log::warn!("make dir {} private: {e:#?}", self.path.display());
             }
-
             #[cfg(any(target_os = "linux", target_os = "android"))]
             if self.umount {
                 let _ = send_unmountable(&self.path);
@@ -495,7 +439,6 @@ impl MagicMount {
         }
         Ok(())
     }
-
     fn handle_symlink(&self) -> Result<()> {
         if let Some(module_path) = &self.node.module_path {
             log::debug!(
@@ -516,7 +459,6 @@ impl MagicMount {
         }
     }
 }
-
 pub fn mount_partitions(
     tmp_path: &Path,
     module_paths: &[PathBuf],
@@ -532,13 +474,10 @@ pub fn mount_partitions(
         for line in tree_str.lines() {
             log::debug!("   {}", line);
         }
-
         let tmp_dir = tmp_path.join("workdir");
         ensure_dir_exists(&tmp_dir)?;
         mount(mount_source, &tmp_dir, "tmpfs", MountFlags::empty(), None::<&std::ffi::CStr>).context("mount tmp")?;
-        
         mount_change(&tmp_dir, MountPropagationFlags::PRIVATE).context("make tmp private")?;
-
         let result = {
             MagicMount::new(
                 &root,
@@ -550,12 +489,10 @@ pub fn mount_partitions(
             )
             .do_magic_mount()
         };
-
         if let Err(e) = unmount(&tmp_dir, UnmountFlags::DETACH) {
             log::error!("failed to unmount tmp {e}");
         }
         fs::remove_dir(tmp_dir).ok();
-
         result
     } else {
         Ok(())
