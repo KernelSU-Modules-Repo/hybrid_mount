@@ -56,7 +56,11 @@
     "loadError": "Failed to load config",
     "loadDefault": "Using default config",
     "saveSuccess": "Saved successfully",
-    "saveFailed": "Failed to save"
+    "saveFailed": "Failed to save",
+    "webui": "WebUI Settings",
+    "fixBottomNav": "Fix Bottom Nav",
+    "fixBottomNavOn": "Bottom Nav Fix Enabled",
+    "fixBottomNavOff": "Bottom Nav Fix Disabled"
   },
   "modules": {
     "title": "Module Modes",

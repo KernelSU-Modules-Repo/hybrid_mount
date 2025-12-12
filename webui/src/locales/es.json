@@ -53,7 +53,11 @@
     "loadError": "Error al cargar config",
     "loadDefault": "Usando config por defecto",
     "saveSuccess": "Guardado exitosamente",
-    "saveFailed": "Error al guardar"
+    "saveFailed": "Error al guardar",
+    "webui": "Ajustes WebUI",
+    "fixBottomNav": "Arreglar Nav. Inferior",
+    "fixBottomNavOn": "Arreglo activado",
+    "fixBottomNavOff": "Arreglo desactivado"
   },
   "modules": {
     "title": "Modos de Módulo",

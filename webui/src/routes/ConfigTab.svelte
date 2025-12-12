@@ -5,14 +5,18 @@
   import BottomActions from '../components/BottomActions.svelte';
   import { slide } from 'svelte/transition';
   import './ConfigTab.css';
+
   let initialConfigStr = $state('');
+
   const isValidPath = (p: string) => !p || (p.startsWith('/') && p.length > 1);
   let invalidModuleDir = $derived(!isValidPath(store.config.moduledir));
   let invalidTempDir = $derived(store.config.tempdir && !isValidPath(store.config.tempdir));
+
   let isDirty = $derived.by(() => {
     if (!initialConfigStr) return false;
     return JSON.stringify(store.config) !== initialConfigStr;
   });
+
   $effect(() => {
     if (!store.loading.config && store.config) {
       if (!initialConfigStr || initialConfigStr === JSON.stringify(store.config)) {
@@ -20,6 +24,7 @@
       }
     }
   });
+
   $effect(() => {
     if (store.systemInfo?.zygisksuEnforce && store.systemInfo.zygisksuEnforce !== '0' && !store.config.allow_umount_coexistence) {
         if (!store.config.disable_umount) {
@@ -27,6 +32,7 @@
         }
     }
   });
+
   function save() {
     if (invalidModuleDir || invalidTempDir) {
       store.showToast(store.L.config.invalidPath, "error");
@@ -36,14 +42,17 @@
         initialConfigStr = JSON.stringify(store.config);
     });
   }
+
   function reload() {
     store.loadConfig().then(() => {
         initialConfigStr = JSON.stringify(store.config);
     });
   }
+
   function resetTempDir() {
     store.config.tempdir = "";
   }
+
   function toggle(key: keyof typeof store.config) {
     if (key === 'disable_umount') {
        if (store.systemInfo?.zygisksuEnforce && store.systemInfo.zygisksuEnforce !== '0' && !store.config.allow_umount_coexistence) {
@@ -56,6 +65,7 @@
     }
   }
 </script>
+
 <div class="config-container">
   <section class="config-group">
     <div class="input-card">
@@ -85,6 +95,7 @@
       </div>
     </div>
   </section>
+
   <section class="config-group">
     <div class="partition-card">
       <div class="partition-header">
@@ -101,6 +112,7 @@
       </div>
     </div>
   </section>
+
   <section class="config-group">
     <div class="options-grid">
       <div class="option-tile static-input">
@@ -114,6 +126,7 @@
           <input class="tile-input-overlay" type="text" bind:value={store.config.mountsource} />
         </div>
       </div>
+
       <button 
         class="option-tile clickable secondary" 
         class:active={store.config.force_ext4} 
@@ -128,6 +141,7 @@
           <span class="tile-label">{store.L.config.forceExt4}</span>
         </div>
       </button>
+
       <button 
         class="option-tile clickable error" 
         class:active={store.config.enable_nuke} 
@@ -142,6 +156,7 @@
           <span class="tile-label">{store.L.config.enableNuke}</span>
         </div>
       </button>
+
       <button 
         class="option-tile clickable tertiary" 
         class:active={store.config.disable_umount} 
@@ -156,6 +171,7 @@
           <span class="tile-label">{store.L.config.disableUmount}</span>
         </div>
       </button>
+
       {#if store.systemInfo?.zygisksuEnforce && store.systemInfo.zygisksuEnforce !== '0'}
         <button 
           class="option-tile clickable error" 
@@ -169,10 +185,11 @@
             </div>
           </div>
           <div class="tile-bottom">
-            <span class="tile-label">{store.L.config?.allowUmountCoexistence || 'Allow Coexistence'}</span>
+             <span class="tile-label">{store.L.config?.allowUmountCoexistence || 'Allow Coexistence'}</span>
           </div>
         </button>
       {/if}
+
       <button 
         class="option-tile clickable primary" 
         class:active={store.config.verbose} 
@@ -187,6 +204,7 @@
           <span class="tile-label">{store.L.config.verboseLabel}</span>
         </div>
       </button>
+
       {#if store.config.verbose}
         <button 
           class="option-tile clickable secondary" 
@@ -206,7 +224,31 @@
       {/if}
     </div>
   </section>
+
+  <section class="config-group">
+    <div style="margin: 0 0 8px 8px; font-size: 13px; font-weight: 500; color: var(--md-sys-color-primary); opacity: 0.8;">
+        {store.L.config?.webui || 'WebUI'}
+    </div>
+    <div class="options-grid">
+      <button 
+        class="option-tile clickable secondary" 
+        class:active={store.fixBottomNav} 
+        onclick={store.toggleBottomNavFix}
+      >
+        <div class="tile-top">
+          <div class="tile-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24"><path d="M21 5v14H3V5h18zm0-2H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM8 17h5v-6H8v6zm0-8h5V7H8v2zM6 17h2V7H6v10zm12-6h-2v6h2v-6zm0-4h-2v2h2V7z" fill="currentColor"/></svg>
+          </div>
+        </div>
+        <div class="tile-bottom">
+          <span class="tile-label">{store.L.config?.fixBottomNav || 'Fix Bottom Nav'}</span>
+        </div>
+      </button>
+    </div>
+  </section>
+
 </div>
+
 <BottomActions>
   <button 
     class="btn-tonal" 

@@ -56,7 +56,11 @@
     "loadError": "加载失败",
     "loadDefault": "已加载默认配置",
     "saveSuccess": "保存成功",
-    "saveFailed": "保存失败"
+    "saveFailed": "保存失败",
+    "webui": "WebUI 设置",
+    "fixBottomNav": "三按钮导航栏适配",
+    "fixBottomNavOn": "已开启三按钮适配",
+    "fixBottomNavOff": "已关闭三按钮适配"
   },
   "modules": {
     "title": "模块模式",

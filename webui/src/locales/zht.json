@@ -53,7 +53,11 @@
     "loadError": "載入失敗",
     "loadDefault": "已載入預設設定",
     "saveSuccess": "儲存成功",
-    "saveFailed": "儲存失敗"
+    "saveFailed": "儲存失敗",
+    "webui": "WebUI 設定",
+    "fixBottomNav": "三按鈕導航列適配",
+    "fixBottomNavOn": "已開啟三按鈕適配",
+    "fixBottomNavOff": "已關閉三按鈕適配"
   },
   "modules": {
     "title": "模組模式",

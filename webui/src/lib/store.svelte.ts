@@ -12,11 +12,14 @@ import type {
   LanguageOption,
   ModeStats
 } from './types';
+
 const localeModules = import.meta.glob('../locales/*.json', { eager: true });
+
 export interface LogEntry {
   text: string;
   type: 'info' | 'warn' | 'error' | 'debug';
 }
+
 const createStore = () => {
   let theme = $state<'auto' | 'light' | 'dark'>('auto');
   let isSystemDark = $state(false);
@@ -24,6 +27,8 @@ const createStore = () => {
   let seed = $state<string | null>(DEFAULT_SEED);
   let loadedLocale = $state<any>(null);
   let toast = $state<ToastMessage>({ id: 'init', text: '', type: 'info', visible: false });
+  let fixBottomNav = $state(false);
+
   const availableLanguages: LanguageOption[] = Object.entries(localeModules).map(([path, mod]: [string, any]) => {
     const match = path.match(/\/([^/]+)\.json$/);
     const code = match ? match[1] : 'en';
@@ -34,6 +39,7 @@ const createStore = () => {
     if (b.code === 'en') return 1;
     return a.name.localeCompare(b.name);
   });
+
   let config = $state<AppConfig>(DEFAULT_CONFIG);
   let modules = $state<Module[]>([]);
   let logs = $state<LogEntry[]>([]);
@@ -48,13 +54,16 @@ const createStore = () => {
   });
   let systemInfo = $state<SystemInfo>({ kernel: '-', selinux: '-', mountBase: '-', activeMounts: [] });
   let activePartitions = $state<string[]>([]);
+  
   let loadingConfig = $state(false);
   let loadingModules = $state(false);
   let loadingLogs = $state(false);
   let loadingStatus = $state(false);
   let savingConfig = $state(false);
   let savingModules = $state(false);
+
   let L = $derived(loadedLocale?.default || {});
+
   let modeStats = $derived.by((): ModeStats => {
     const stats = { auto: 0, magic: 0, hymofs: 0 };
     modules.forEach(m => {
@@ -65,6 +74,7 @@ const createStore = () => {
     });
     return stats;
   });
+
   function showToast(text: string, type: 'info' | 'success' | 'error' = 'info') {
     const id = Date.now().toString();
     toast = { id, text, type, visible: true };
@@ -74,15 +84,18 @@ const createStore = () => {
       }
     }, 3000);
   }
+
   function setTheme(t: 'auto' | 'light' | 'dark') {
     theme = t;
     applyTheme();
   }
+
   function applyTheme() {
     const isDark = theme === 'auto' ? isSystemDark : theme === 'dark';
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     Monet.apply(seed, isDark);
   }
+
   async function loadLocale(code: string) {
     const match = Object.entries(localeModules).find(([path]) => path.endsWith(`/${code}.json`));
     if (match) {
@@ -91,21 +104,36 @@ const createStore = () => {
         loadedLocale = localeModules['../locales/en.json'];
     }
   }
+
   function setLang(code: string) {
     lang = code;
     localStorage.setItem('lang', code);
     loadLocale(code);
   }
+
+  function toggleBottomNavFix() {
+    fixBottomNav = !fixBottomNav;
+    localStorage.setItem('hm_fix_bottom_nav', String(fixBottomNav));
+    const msg = fixBottomNav 
+        ? (L.config?.fixBottomNavOn || 'Bottom Nav Fix Enabled') 
+        : (L.config?.fixBottomNavOff || 'Bottom Nav Fix Disabled');
+    showToast(msg, 'info');
+  }
+
   async function init() {
     const savedLang = localStorage.getItem('lang') || 'en';
     lang = savedLang;
     await loadLocale(savedLang);
+
+    fixBottomNav = localStorage.getItem('hm_fix_bottom_nav') === 'true';
+
     const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
     isSystemDark = darkModeQuery.matches;
     darkModeQuery.addEventListener('change', (e) => {
       isSystemDark = e.matches;
       applyTheme();
     });
+
     try {
         const sysColor = await API.fetchSystemColor();
         if (sysColor) {
@@ -113,11 +141,13 @@ const createStore = () => {
         }
     } catch {}
     applyTheme();
+
     await Promise.all([
       loadConfig(),
       loadStatus()
     ]);
   }
+
   async function loadConfig() {
     loadingConfig = true;
     try {
@@ -127,6 +157,7 @@ const createStore = () => {
     }
     loadingConfig = false;
   }
+
   async function saveConfig() {
     savingConfig = true;
     try {
@@ -137,6 +168,7 @@ const createStore = () => {
     }
     savingConfig = false;
   }
+
   async function loadModules() {
     loadingModules = true;
     try {
@@ -146,6 +178,7 @@ const createStore = () => {
     }
     loadingModules = false;
   }
+
   async function saveModules() {
     savingModules = true;
     try {
@@ -156,6 +189,7 @@ const createStore = () => {
     }
     savingModules = false;
   }
+
   async function loadLogs(silent: boolean = false) {
     if (!silent) loadingLogs = true;
     try {
@@ -173,6 +207,7 @@ const createStore = () => {
     }
     loadingLogs = false;
   }
+
   async function loadStatus() {
     loadingStatus = true;
     try {
@@ -187,6 +222,7 @@ const createStore = () => {
     } catch (e) {}
     loadingStatus = false;
   }
+
   return {
     get theme() { return theme; },
     get isSystemDark() { return isSystemDark; },
@@ -196,6 +232,8 @@ const createStore = () => {
     get L() { return L; },
     get toast() { return toast; },
     get toasts() { return toast.visible ? [toast] : []; },
+    get fixBottomNav() { return fixBottomNav; },
+    toggleBottomNavFix,
     showToast,
     setTheme,
     setLang,
@@ -233,4 +271,5 @@ const createStore = () => {
     }
   };
 };
+
 export const store = createStore();
