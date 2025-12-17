@@ -1,12 +1,11 @@
-## v1.7.1
+## v1.7.2
 
-Changes since v1.7.0:
-* Perf: Parallelize conflict analysis and mount plan generation using Rayon
-* [skip ci]Remove unused version update from release.yml
-* Perf: Parallelize module scanning and rules loading using Rayon
-* Refactor: Replace unwrap with anyhow::Context and improve config error handling
-* refactor: Add dead code allowance for unused functions in hymofs and utils
-* refactor: Replace raw ioctl implementation with nix crate
-* feat: Check CONFIG_TMPFS_XATTR=y runtime support for OverlayFS on tmpfs
-* chore(deps-dev): bump svelte from 5.45.4 to 5.46.0 in /webui
-* chore(deps-dev): bump vite from 7.2.6 to 7.3.0 in /webui (#49)
+Changes since v1.7.1:
+* feat(webui): improve config reset ux
+* feat(webui): add config reset functionality
+* Revert "feat: Check CONFIG_TMPFS_XATTR=y runtime support for OverlayFS on tmpfs"
+* chore: add issue template configuration to disable blank issues
+* fix(metainstall): streamline partition handling and cleanup logic
+* fix(scripts): avoid unnecessary mounts caused by /system/<partition> (#53)
+* [skip ci]Enhance bug report template with additional fields for device codename, Android build fingerprint, daemon version, KernelSU manager version, and improved descriptions for better clarity.
+* chore(release): bump version to v1.7.1 [skip ci]

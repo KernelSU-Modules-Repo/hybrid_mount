@@ -3,7 +3,7 @@ members = ["xtask"]
 resolver = "2"
 [package]
 name = "meta-hybrid"
-version = "1.7.1"
+version = "1.7.2"
 edition = "2021"
 [dependencies]
 anyhow = "1"
