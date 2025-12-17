@@ -175,6 +175,18 @@ const createStore = () => {
     savingConfig = false;
   }
 
+  async function resetConfig() {
+    savingConfig = true;
+    try {
+      await API.resetConfig();
+      await loadConfig();
+      showToast(L.config?.resetSuccess || 'Config reset to defaults', 'success');
+    } catch (e) {
+      showToast('Failed to reset config', 'error');
+    }
+    savingConfig = false;
+  }
+
   async function loadModules() {
     loadingModules = true;
     try {
@@ -266,6 +278,7 @@ const createStore = () => {
     set config(v) { config = v; },
     loadConfig,
     saveConfig,
+    resetConfig,
     get modules() { return modules; },
     set modules(v) { modules = v; },
     get modeStats() { return modeStats; },

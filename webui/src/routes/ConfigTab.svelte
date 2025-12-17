@@ -52,6 +52,12 @@
         initialConfigStr = JSON.stringify(store.config);
     });
   }
+  
+  function reset() {
+    store.resetConfig().then(() => {
+        initialConfigStr = JSON.stringify(store.config);
+    });
+  }
 
   function resetTempDir() {
     store.config.tempdir = "";
@@ -73,6 +79,8 @@
     const target = e.target as HTMLInputElement;
     (store.config as any)[key] = target.value;
   }
+  
+  const REPLAY_ICON = "M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z";
 </script>
 
 <div class="config-container">
@@ -162,7 +170,7 @@
       >
         <md-ripple></md-ripple>
         <div class="tile-top">
-           <div class="tile-icon">
+          <div class="tile-icon">
             <md-icon><svg viewBox="0 0 24 24"><path d={ICONS.save} /></svg></md-icon>
           </div>
         </div>
@@ -195,7 +203,7 @@
         <md-ripple></md-ripple>
         <div class="tile-top">
           <div class="tile-icon">
-             <md-icon><svg viewBox="0 0 24 24"><path d={ICONS.anchor} /></svg></md-icon>
+            <md-icon><svg viewBox="0 0 24 24"><path d={ICONS.anchor} /></svg></md-icon>
           </div>
         </div>
         <div class="tile-bottom">
@@ -293,6 +301,17 @@
     onkeydown={() => {}}
   >
     <md-icon><svg viewBox="0 0 24 24"><path d={ICONS.refresh} /></svg></md-icon>
+  </md-filled-tonal-icon-button>
+  
+  <md-filled-tonal-icon-button 
+    onclick={reset}
+    disabled={store.saving.config}
+    title={store.L.config?.reset || 'Reset to Default'}
+    role="button"
+    tabindex="0"
+    onkeydown={() => {}}
+  >
+    <md-icon><svg viewBox="0 0 24 24"><path d={REPLAY_ICON} /></svg></md-icon>
   </md-filled-tonal-icon-button>
 
   <div class="spacer"></div>

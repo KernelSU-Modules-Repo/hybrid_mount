@@ -81,6 +81,14 @@ const RealAPI = {
       throw new Error(`Failed to save config: ${stderr}`);
     }
   },
+  resetConfig: async (): Promise<void> => {
+    if (!ksuExec) throw new Error("No KSU environment");
+    const cmd = `${PATHS.BINARY} gen-config`;
+    const { errno, stderr } = await ksuExec(cmd);
+    if (errno !== 0) {
+      throw new Error(`Failed to reset config: ${stderr}`);
+    }
+  },
   scanModules: async (path?: string): Promise<Module[]> => {
     if (!ksuExec) return [];
     const cmd = `${PATHS.BINARY} modules`;

@@ -13,6 +13,10 @@ export const MockAPI = {
     await delay(500);
     console.log('[Mock] Config saved:', config);
   },
+  async resetConfig(): Promise<void> {
+    await delay(500);
+    console.log('[Mock] Config reset to defaults');
+  },
   async scanModules(dir: string): Promise<Module[]> {
     await delay(600);
     return [
