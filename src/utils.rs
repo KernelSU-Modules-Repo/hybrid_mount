@@ -1,6 +1,6 @@
 use std::{
     ffi::CString,
-    fs::{self, create_dir_all, remove_dir_all, remove_file, write},
+    fs::{self, create_dir_all, remove_dir_all, remove_file, write, File},
     io::Write,
     os::unix::fs::symlink,
     path::{Path, PathBuf},
@@ -13,6 +13,7 @@ use std::{
 };
 use anyhow::{Context, Result, bail};
 use rustix::mount::{mount, MountFlags};
+use rustix::fs::ioctl_ficlone;
 use tracing::{Event, Subscriber};
 use tracing_subscriber::{
     fmt::{self, FmtContext, FormatEvent, FormatFields},
@@ -229,6 +230,25 @@ pub fn repair_image(image_path: &Path) -> Result<()> {
     Ok(())
 }
 
+pub fn reflink_or_copy(src: &Path, dest: &Path) -> Result<u64> {
+    let src_file = File::open(src)?;
+    let dest_file = File::create(dest)?;
+
+    if ioctl_ficlone(&dest_file, &src_file).is_ok() {
+        let metadata = src_file.metadata()?;
+        let len = metadata.len();
+        dest_file.set_permissions(metadata.permissions())?;
+        tracing::trace!("Reflink success: {:?} -> {:?}", src, dest);
+        return Ok(len);
+    }
+
+    drop(dest_file);
+    drop(src_file);
+
+    tracing::trace!("Reflink failed (fallback to copy): {:?} -> {:?}", src, dest);
+    fs::copy(src, dest).map_err(|e| e.into())
+}
+
 fn native_cp_r(src: &Path, dst: &Path) -> Result<()> {
     if !dst.exists() {
         create_dir_all(dst)?;
@@ -249,9 +269,7 @@ fn native_cp_r(src: &Path, dst: &Path) -> Result<()> {
             symlink(&link_target, &dst_path)?;
             let _ = lsetfilecon(&dst_path, DEFAULT_CONTEXT);
         } else {
-            fs::copy(&src_path, &dst_path)?;
-            let src_meta = src_path.metadata()?;
-            fs::set_permissions(&dst_path, src_meta.permissions())?;
+            reflink_or_copy(&src_path, &dst_path)?;
             lsetfilecon(&dst_path, DEFAULT_CONTEXT)?;
         }
     }
@@ -301,13 +319,10 @@ pub fn ensure_temp_dir(temp_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-// KSU / IOCTL 逻辑
 const KSU_INSTALL_MAGIC1: u32 = 0xDEADBEEF;
 const KSU_INSTALL_MAGIC2: u32 = 0xCAFEBABE;
 
-// _IOW('K', 17, 0) => 0x40000000 | (0x4b << 8) | 17 = 0x40004b11
 const KSU_IOCTL_NUKE_EXT4_SYSFS: u32 = 0x40004b11; 
-// _IOW('K', 18, 0) => 0x40000000 | (0x4b << 8) | 18 = 0x40004b12
 const KSU_IOCTL_ADD_TRY_UMOUNT: u32 = 0x40004b12;
 
 static DRIVER_FD: OnceLock<RawFd> = OnceLock::new();
