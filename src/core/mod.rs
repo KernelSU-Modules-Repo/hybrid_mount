@@ -5,6 +5,8 @@ pub mod state;
 pub mod storage;
 pub mod sync;
 pub mod modules;
+pub mod granary;
+pub mod winnow;
 
 use std::path::Path;
 use anyhow::Result;
@@ -174,6 +176,8 @@ impl OryzaEngine<Executed> {
         if let Err(e) = state.save() {
             log::error!("Failed to save runtime state: {:#}", e);
         }
+
+        granary::disengage_ratoon_protocol();
 
         log::info!(">> System operational. Mount sequence complete.");
         Ok(())

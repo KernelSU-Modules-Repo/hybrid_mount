@@ -4,6 +4,7 @@ use std::{
 };
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use crate::core::winnow::WinnowingTable;
 
 pub const CONFIG_FILE_DEFAULT: &str = "/data/adb/meta-hybrid/config.toml";
 
@@ -30,6 +31,8 @@ pub struct Config {
     pub hymofs_stealth: bool,
     #[serde(default)]
     pub hymofs_debug: bool,
+    #[serde(default)]
+    pub winnowing: WinnowingTable,
 }
 
 fn default_moduledir() -> PathBuf {
@@ -75,6 +78,7 @@ impl Default for Config {
             dry_run: false,
             hymofs_stealth: true,
             hymofs_debug: false,
+            winnowing: WinnowingTable::default(),
         }
     }
 }

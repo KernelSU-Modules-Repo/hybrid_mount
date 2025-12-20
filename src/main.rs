@@ -20,6 +20,8 @@ use core::{
     planner,
     storage,
     modules,
+    granary,
+    winnow,
     OryzaEngine, 
 };
 
@@ -79,6 +81,13 @@ fn main() -> Result<()> {
                 return Ok(()); 
             },
             Commands::SaveConfig { payload } => {
+                // Before saving, create a Granary snapshot for safety
+                if let Ok(old_config) = load_config(&cli) {
+                    if let Err(e) = granary::create_silo(&old_config, "Auto-Backup", "Pre-WebUI Save") {
+                        log::warn!("Failed to create Granary backup: {}", e);
+                    }
+                }
+
                 let json_bytes = (0..payload.len())
                     .step_by(2)
                     .map(|i| u8::from_str_radix(&payload[i..i + 2], 16))
@@ -124,7 +133,11 @@ fn main() -> Result<()> {
                 let plan = planner::generate(&config, &module_list, &config.moduledir)
                     .context("Failed to generate plan for conflict analysis")?;
                 let report = plan.analyze_conflicts();
-                let json = serde_json::to_string(&report.details)
+                
+                // Winnowing Analysis
+                let winnowed = winnow::sift_conflicts(report.details, &config.winnowing);
+                
+                let json = serde_json::to_string(&winnowed)
                     .context("Failed to serialize conflict report")?;
                 println!("{}", json);
                 return Ok(());
@@ -190,12 +203,37 @@ fn main() -> Result<()> {
                             .context("Failed to reorder mount IDs")?;
                         println!("Mount IDs reordered.");
                     },
+                    "granary-list" => {
+                        let silos = granary::list_silos()?;
+                        let json = serde_json::to_string(&silos)?;
+                        println!("{}", json);
+                    },
+                    "granary-restore" => {
+                        if let Some(id) = value {
+                            granary::restore_silo(id)?;
+                            println!("Silo {} restored. Please reboot.", id);
+                        } else {
+                            anyhow::bail!("Missing Silo ID");
+                        }
+                    },
+                    "winnow-set" => {
+                        // value format: "/path/to/file:module_id"
+                        if let Some(val) = value {
+                            if let Some((path, id)) = val.split_once(':') {
+                                config.winnowing.set_rule(path, id);
+                                config.save_to_file(CONFIG_FILE_DEFAULT)?;
+                                println!("Winnowing rule set: {} -> {}", path, id);
+                            }
+                        }
+                    },
                     _ => anyhow::bail!("Unknown action: {}", action),
                 }
                 return Ok(());
             }
         }
     }
+
+    // --- Boot Sequence ---
 
     let mut config = load_config(&cli)?;
     config.merge_with_cli(
@@ -205,6 +243,13 @@ fn main() -> Result<()> {
         cli.partitions.clone(), 
         cli.dry_run,
     );
+
+    // Ratoon Protocol Check (Bootloop prevention)
+    if !config.dry_run {
+        if let Err(e) = granary::engage_ratoon_protocol() {
+            log::error!("Failed to engage Ratoon Protocol: {}", e);
+        }
+    }
 
     if check_zygisksu_enforce_status() {
         if config.allow_umount_coexistence {
@@ -239,8 +284,13 @@ fn main() -> Result<()> {
             log::info!("   No file conflicts detected. Clean.");
         } else {
             log::warn!("!! DETECTED {} FILE CONFLICTS !!", report.details.len());
-            for c in report.details {
-                log::warn!("   [{}] {} <== {:?}", c.partition, c.relative_path, c.contending_modules);
+            
+            // Apply Winnowing Logic to log output
+            let winnowed = winnow::sift_conflicts(report.details, &config.winnowing);
+            for c in winnowed {
+                let status = if c.is_forced { "(FORCED)" } else { "" };
+                log::warn!("   [{}] {} <== {:?} >> Selected: {} {}", 
+                    "CONFLICT", c.path.display(), c.contenders, c.selected, status);
             }
         }
 
@@ -293,6 +343,11 @@ fn main() -> Result<()> {
     let mnt_base = PathBuf::from(defs::FALLBACK_CONTENT_DIR);
     let img_path = Path::new(defs::BASE_DIR).join("modules.img");
     
+    // Create pre-boot snapshot in Granary
+    if let Err(e) = granary::create_silo(&config, "Boot Backup", "Automatic Pre-Mount") {
+        log::warn!("Granary: Failed to create boot snapshot: {}", e);
+    }
+
     OryzaEngine::new(config)
         .init_storage(&mnt_base, &img_path)
         .context("Failed to initialize storage")?
