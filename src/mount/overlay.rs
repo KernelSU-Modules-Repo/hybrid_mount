@@ -69,10 +69,11 @@ fn get_sub_mounts(parent: &str) -> Result<Vec<String>> {
         }
         let mount_point = parts[1];
 
-        if mount_point.starts_with(&parent_prefix) && mount_point != parent {
-            if !mount_point.contains("hybrid_mount") {
-                sub_mounts.push(mount_point.to_string());
-            }
+        if mount_point.starts_with(&parent_prefix)
+            && mount_point != parent
+            && !mount_point.contains("hybrid_mount")
+        {
+            sub_mounts.push(mount_point.to_string());
         }
     }
 
