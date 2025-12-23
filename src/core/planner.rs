@@ -272,6 +272,17 @@ pub fn generate(
         let initial_target_path = format!("/{}", part);
         let target_path_obj = Path::new(&initial_target_path);
 
+        if fs::symlink_metadata(target_path_obj)
+            .map(|m| m.file_type().is_symlink())
+            .unwrap_or(false)
+        {
+            log::warn!(
+                "Skipping overlay on symlink partition: {}",
+                initial_target_path
+            );
+            continue;
+        }
+
         let resolved_target = if target_path_obj.exists() {
             match target_path_obj.canonicalize() {
                 Ok(p) => p,
