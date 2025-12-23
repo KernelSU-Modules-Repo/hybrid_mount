@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::ffi::CString;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -63,9 +64,7 @@ pub fn bind_mount(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
     let tree = open_tree(
         CWD,
         from.as_ref(),
-        OpenTreeFlags::OPEN_TREE_CLOEXEC
-            | OpenTreeFlags::OPEN_TREE_CLONE
-            | OpenTreeFlags::AT_RECURSIVE,
+        OpenTreeFlags::CLOEXEC | OpenTreeFlags::CLONE | OpenTreeFlags::RECURSIVE,
     )?;
     move_mount(
         tree.as_fd(),
@@ -129,18 +128,19 @@ pub fn mount_overlay(
 ) -> Result<()> {
     info!("mount overlay for {} (subdirectory mode)", target);
 
+    let process = Process::myself().context("failed to get self process")?;
+    let mount_infos = process.mountinfo().context("failed to get mountinfo")?;
+    let mount_points: HashSet<PathBuf> = mount_infos
+        .0
+        .iter()
+        .map(|m| m.mount_point.clone())
+        .collect();
+
     std::env::set_current_dir(target).with_context(|| format!("failed to chdir to {}", target))?;
 
     let entries = fs::read_dir(".").with_context(|| "failed to read target directory")?;
 
-    let exclusions = [
-        "lost+found",
-        "odm",
-        "product",
-        "system_ext",
-        "vendor",
-        "apex",
-    ];
+    let exclusions = ["lost+found"];
 
     for entry in entries {
         let entry = match entry {
@@ -166,8 +166,14 @@ pub fn mount_overlay(
             continue;
         }
 
-        let relative_path = format!("/{}", name_str);
         let target_path = Path::new(target).join(&*name_str);
+
+        if mount_points.contains(&target_path) {
+            debug!("Skipping mount point: {}", target_path.display());
+            continue;
+        }
+
+        let relative_path = format!("/{}", name_str);
         let stock_root_path = Path::new(".").join(&*name_str);
 
         if let Err(e) =
@@ -177,11 +183,7 @@ pub fn mount_overlay(
         }
     }
 
-    let mounts = Process::myself()?
-        .mountinfo()
-        .with_context(|| "get mountinfo")?;
-
-    let mount_seq = mounts
+    let mount_seq = mount_infos
         .0
         .iter()
         .filter(|m| {
@@ -204,6 +206,11 @@ pub fn mount_overlay(
         {
             let clean_name = first_str.trim_start_matches('/');
             if exclusions.contains(&clean_name) {
+                continue;
+            }
+
+            let root_child = Path::new(target).join(clean_name);
+            if mount_points.contains(&root_child) {
                 continue;
             }
         }
