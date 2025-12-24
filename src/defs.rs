@@ -1,4 +1,4 @@
-pub const FALLBACK_CONTENT_DIR: &str = "/data/adb/meta-hybrid/meta_hybrid_mnt/";
+pub const FALLBACK_CONTENT_DIR: &str = "/mnt/meta-hybrid/meta_hybrid_mnt/";
 pub const BASE_DIR: &str = "/data/adb/meta-hybrid/";
 pub const RUN_DIR: &str = "/data/adb/meta-hybrid/run/";
 pub const STATE_FILE: &str = "/data/adb/meta-hybrid/run/daemon_state.json";
