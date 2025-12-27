@@ -12,6 +12,8 @@ use std::{
 };
 use tempfile::NamedTempFile;
 use zip::{write::FileOptions, CompressionMethod};
+use base64::{engine::general_purpose, Engine as _};
+
 mod zip_ext;
 use crate::zip_ext::zip_create_from_directory_with_options;
 
@@ -207,14 +209,24 @@ fn resolve_signing_creds(
     if let (Some(k), Some(c)) = (arg_key, arg_cert) {
         return Ok((Some(k), Some(c), vec![]));
     }
-    if let (Ok(k_content), Ok(c_content)) = (
+    if let (Ok(k_env), Ok(c_env)) = (
         env::var("META_HYBRID_SIGN_KEY"),
         env::var("META_HYBRID_SIGN_CERT"),
     ) {
+        // --- 关键修改：Base64 解码逻辑 ---
+        let k_clean = k_env.replace(['\n', '\r', ' '], "");
+        let c_clean = c_env.replace(['\n', '\r', ' '], "");
+
+        let k_bytes = general_purpose::STANDARD.decode(k_clean)
+            .context("Failed to decode SIGN_KEY from Base64")?;
+        let c_bytes = general_purpose::STANDARD.decode(c_clean)
+            .context("Failed to decode SIGN_CERT from Base64")?;
+
         let mut k_file = NamedTempFile::new()?;
-        k_file.write_all(k_content.as_bytes())?;
+        k_file.write_all(&k_bytes)?;
         let mut c_file = NamedTempFile::new()?;
-        c_file.write_all(c_content.as_bytes())?;
+        c_file.write_all(&c_bytes)?;
+
         let k_path = k_file.path().to_path_buf();
         let c_path = c_file.path().to_path_buf();
         return Ok((Some(k_path), Some(c_path), vec![k_file, c_file]));
@@ -228,13 +240,14 @@ fn sign_module(zip_path: &Path, key_path: &Path, cert_path: &Path) -> Result<()>
         zip_path.file_stem().unwrap_or_default().to_string_lossy()
     ));
 
+    println!(":: Signing module with ksusig...");
     let status = Command::new("ksusig")
         .arg("sign")
         .arg("--key")
         .arg(key_path)
         .arg("--cert")
         .arg(cert_path)
-        .arg(zip_path)
+        .arg(zip_path) 
         .arg(&output_path)
         .status()
         .context("Failed to execute ksusig")?;
@@ -242,6 +255,7 @@ fn sign_module(zip_path: &Path, key_path: &Path, cert_path: &Path) -> Result<()>
     if !status.success() {
         anyhow::bail!("ksusig signing failed");
     }
+
     fs::rename(&output_path, zip_path)?;
     Ok(())
 }
