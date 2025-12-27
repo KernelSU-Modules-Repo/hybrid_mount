@@ -1,4 +1,6 @@
-## v1.9.21
+## v1.9.22
 
-Changes since v1.9.2:
-* feat(xtask): support signing with encrypted private key
+Changes since v1.9.21:
+* fix: make clippy happy
+* fix: correct selinux context for symlinks and overlay root
+* chore(release): bump version to v1.9.21 [skip ci]
