@@ -14,6 +14,7 @@
   import '@material/web/dialog/dialog.js';
   import '@material/web/button/text-button.js';
   import '@material/web/switch/switch.js';
+  import type { OverlayMode } from '../lib/types';
 
   let initialConfigStr = $state('');
   let showResetConfirm = $state(false);
@@ -79,6 +80,19 @@
   function handleInput(key: keyof typeof store.config, value: string) {
     (store.config as any)[key] = value;
   }
+
+  function setOverlayMode(mode: string) {
+    store.config.overlay_mode = mode as OverlayMode;
+  }
+
+  // Explicitly cast the default array to OverlayMode[] to satisfy TypeScript
+  let availableModes = $derived(store.systemInfo?.supported_overlay_modes ?? (['tmpfs', 'ext4', 'erofs'] as OverlayMode[]));
+  
+  const MODE_DESCS: Record<OverlayMode, string> = {
+    'tmpfs': 'RAM-based. Fastest I/O, reset on reboot.',
+    'ext4': 'Loopback image. Persistent, saves RAM.',
+    'erofs': 'Read-only compressed. High performance, space saving.'
+  };
 </script>
 
 <md-dialog 
@@ -228,39 +242,37 @@
   {/if}
 
   <section class="config-group">
+    <div class="config-card">
+      <div class="card-header">
+        <div class="card-icon">
+          <md-icon><svg viewBox="0 0 24 24"><path d={ICONS.save} /></svg></md-icon>
+        </div>
+        <div class="card-text">
+          <span class="card-title">{store.L.config?.overlayMode || "Overlay Mode"}</span>
+          <span class="card-desc">{store.L.config?.overlayModeDesc || "Select backing storage strategy"}</span>
+        </div>
+      </div>
+      <div class="mode-selector">
+        {#each availableModes as mode}
+          <button 
+            class="mode-item" 
+            class:selected={store.config.overlay_mode === mode} 
+            onclick={() => setOverlayMode(mode)}
+          >
+            <md-ripple></md-ripple>
+            <div class="mode-info">
+              <span class="mode-title">{store.L.config?.[`mode_${mode}`] || mode}</span>
+              <span class="mode-desc">{store.L.config?.[`mode_${mode}Desc`] || MODE_DESCS[mode]}</span>
+            </div>
+            <div class="mode-check">
+               <md-icon><svg viewBox="0 0 24 24"><path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" /></svg></md-icon>
+            </div>
+          </button>
+        {/each}
+      </div>
+    </div>
+
     <div class="options-grid">
-      <button 
-        class="option-tile clickable secondary" 
-        class:active={store.config.force_ext4} 
-        onclick={() => toggle('force_ext4')}
-      >
-        <md-ripple></md-ripple>
-        <div class="tile-top">
-          <div class="tile-icon">
-            <md-icon><svg viewBox="0 0 24 24"><path d={ICONS.save} /></svg></md-icon>
-          </div>
-        </div>
-        <div class="tile-bottom">
-          <span class="tile-label">{store.L.config.forceExt4}</span>
-        </div>
-      </button>
-
-      <button 
-        class="option-tile clickable secondary" 
-        class:active={store.config.use_erofs} 
-        onclick={() => toggle('use_erofs')}
-      >
-        <md-ripple></md-ripple>
-        <div class="tile-top">
-          <div class="tile-icon">
-            <md-icon><svg viewBox="0 0 24 24"><path d={ICONS.save} /></svg></md-icon>
-          </div>
-        </div>
-        <div class="tile-bottom">
-          <span class="tile-label">{store.L.config?.useErofs || "EROFS Mode"}</span>
-        </div>
-      </button>
-
       <button 
         class="option-tile clickable error" 
         class:active={store.config.enable_nuke} 

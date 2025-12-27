@@ -8,13 +8,14 @@ export interface GranaryConfig {
   retention_days: number;
 }
 
+export type OverlayMode = 'tmpfs' | 'ext4' | 'erofs';
+
 export interface AppConfig {
   moduledir: string;
   mountsource: string;
   verbose: boolean;
   partitions: string[];
-  force_ext4: boolean;
-  use_erofs: boolean;
+  overlay_mode: OverlayMode;
   enable_nuke: boolean;
   disable_umount: boolean;
   allow_umount_coexistence: boolean;
@@ -59,6 +60,7 @@ export interface SystemInfo {
   mountBase: string;
   activeMounts: string[];
   zygisksuEnforce?: string;
+  supported_overlay_modes?: OverlayMode[]; // For feature detection
 }
 
 export interface DeviceInfo {

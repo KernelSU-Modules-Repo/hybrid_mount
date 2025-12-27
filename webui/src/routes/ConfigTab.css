@@ -232,3 +232,51 @@ md-icon svg {
   outline: 2px solid var(--md-sys-color-primary);
   outline-offset: -1px;
 }
+.mode-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mode-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s;
+  color: var(--md-sys-color-on-surface);
+}
+.mode-item.selected {
+  background: var(--md-sys-color-secondary-container);
+  border-color: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+.mode-info {
+  display: flex;
+  flex-direction: column;
+}
+.mode-title {
+  font-weight: 500;
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+.mode-desc {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+.mode-check {
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+}
+.mode-item.selected .mode-check {
+  opacity: 1;
+}
