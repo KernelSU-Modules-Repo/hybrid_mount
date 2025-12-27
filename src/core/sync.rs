@@ -40,10 +40,8 @@ pub fn perform_sync(modules: &[Module], target_base: &Path) -> Result<()> {
                 log::warn!("Failed to clean target dir for {}: {}", module.id, e);
             }
 
-            if let Err(e) = utils::sync_dir(&module.source_path, &dst) {
+            if let Err(e) = utils::sync_dir(&module.source_path, &dst, true) {
                 log::error!("Failed to sync module {}: {}", module.id, e);
-            } else {
-                repair_module_contexts(&dst, &module.id);
             }
         } else {
             log::debug!("Skipping module: {}", module.id);
@@ -102,55 +100,6 @@ fn should_sync(src: &Path, dst: &Path) -> bool {
         (Ok(s), Ok(d)) => s != d,
         _ => true,
     }
-}
-
-fn repair_module_contexts(module_root: &Path, module_id: &str) {
-    for part in defs::BUILTIN_PARTITIONS {
-        let part_root = module_root.join(part);
-
-        if part_root.exists()
-            && let Err(e) = recursive_context_repair(module_root, &part_root)
-        {
-            log::warn!("Context repair failed for {}/{}: {}", module_id, part, e);
-        }
-    }
-}
-
-fn recursive_context_repair(base: &Path, current: &Path) -> Result<()> {
-    if !current.exists() {
-        return Ok(());
-    }
-
-    let file_name = current.file_name().and_then(|n| n.to_str()).unwrap_or("");
-
-    if (file_name == "upperdir" || file_name == "workdir")
-        && let Some(parent) = current.parent()
-        && let Ok(ctx) = utils::lgetfilecon(parent)
-    {
-        let _ = utils::lsetfilecon(current, &ctx);
-    } else {
-        let relative = current.strip_prefix(base)?;
-
-        let system_path = Path::new("/").join(relative);
-
-        if system_path.exists() {
-            let _ = utils::copy_path_context(&system_path, current);
-        } else if let Some(parent) = system_path.parent()
-            && parent.exists()
-        {
-            let _ = utils::copy_path_context(parent, current);
-        }
-    }
-
-    if current.is_dir()
-        && let Ok(entries) = fs::read_dir(current)
-    {
-        for entry in entries.flatten() {
-            let _ = recursive_context_repair(base, &entry.path());
-        }
-    }
-
-    Ok(())
 }
 
 fn has_files_recursive(path: &Path) -> bool {

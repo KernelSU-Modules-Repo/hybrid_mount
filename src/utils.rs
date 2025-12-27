@@ -25,7 +25,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use crate::defs::{self, TMPFS_CANDIDATES};
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
-use extattr::{Flags as XattrFlags, lsetxattr, lgetxattr, llistxattr};
+use extattr::{Flags as XattrFlags, lgetxattr, llistxattr, lsetxattr};
 
 const SELINUX_XATTR: &str = "security.selinux";
 const OVERLAY_OPAQUE_XATTR: &str = "trusted.overlay.opaque";
@@ -61,16 +61,24 @@ pub fn init_logging(verbose: bool, log_path: &Path) -> Result<WorkerGuard> {
     if let Some(parent) = log_path.parent() {
         create_dir_all(parent)?;
     }
-    let file_appender = tracing_appender::rolling::never(log_path.parent().unwrap(), log_path.file_name().unwrap());
+    let file_appender =
+        tracing_appender::rolling::never(log_path.parent().unwrap(), log_path.file_name().unwrap());
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
-    let filter = if verbose { EnvFilter::new("debug") } else { EnvFilter::new("info") };
+    let filter = if verbose {
+        EnvFilter::new("debug")
+    } else {
+        EnvFilter::new("info")
+    };
 
     let file_layer = fmt::layer()
         .with_ansi(false)
         .with_writer(non_blocking)
         .event_format(SimpleFormatter);
 
-    tracing_subscriber::registry().with(filter).with(file_layer).init();
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(file_layer)
+        .init();
     tracing_log::LogTracer::init().ok();
 
     let log_path_buf = log_path.to_path_buf();
@@ -106,7 +114,8 @@ pub fn init_logging(verbose: bool, log_path: &Path) -> Result<WorkerGuard> {
 }
 
 pub fn validate_module_id(module_id: &str) -> Result<()> {
-    let re = MODULE_ID_REGEX.get_or_init(|| Regex::new(r"^[a-zA-Z][a-zA-Z0-9._-]+$").expect("Invalid Regex pattern"));
+    let re = MODULE_ID_REGEX
+        .get_or_init(|| Regex::new(r"^[a-zA-Z][a-zA-Z0-9._-]+$").expect("Invalid Regex pattern"));
     if re.is_match(module_id) {
         Ok(())
     } else {
@@ -126,9 +135,14 @@ fn copy_extended_attributes(src: &Path, dst: &Path) -> Result<()> {
         match lgetxattr(src, SELINUX_XATTR) {
             Ok(ctx) => {
                 let _ = lsetxattr(dst, SELINUX_XATTR, &ctx, XattrFlags::empty());
-            },
+            }
             Err(_) => {
-                let _ = lsetxattr(dst, SELINUX_XATTR, DEFAULT_CONTEXT.as_bytes(), XattrFlags::empty());
+                let _ = lsetxattr(
+                    dst,
+                    SELINUX_XATTR,
+                    DEFAULT_CONTEXT.as_bytes(),
+                    XattrFlags::empty(),
+                );
             }
         }
 
@@ -137,16 +151,16 @@ fn copy_extended_attributes(src: &Path, dst: &Path) -> Result<()> {
         }
 
         if let Ok(xattrs) = llistxattr(src) {
-             for xattr_name in xattrs {
-                 let name_bytes = xattr_name.as_bytes();
-                 let name_str = String::from_utf8_lossy(name_bytes);
-                 #[allow(clippy::collapsible_if)]
-                 if name_str.starts_with("trusted.overlay.") && name_str != OVERLAY_OPAQUE_XATTR {
-                     if let Ok(val) = lgetxattr(src, &xattr_name) {
-                         let _ = lsetxattr(dst, &xattr_name, &val, XattrFlags::empty());
-                     }
-                 }
-             }
+            for xattr_name in xattrs {
+                let name_bytes = xattr_name.as_bytes();
+                let name_str = String::from_utf8_lossy(name_bytes);
+                #[allow(clippy::collapsible_if)]
+                if name_str.starts_with("trusted.overlay.") && name_str != OVERLAY_OPAQUE_XATTR {
+                    if let Ok(val) = lgetxattr(src, &xattr_name) {
+                        let _ = lsetxattr(dst, &xattr_name, &val, XattrFlags::empty());
+                    }
+                }
+            }
         }
     }
     Ok(())
@@ -155,9 +169,19 @@ fn copy_extended_attributes(src: &Path, dst: &Path) -> Result<()> {
 pub fn lsetfilecon<P: AsRef<Path>>(path: P, con: &str) -> Result<()> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
-        if let Err(e) = lsetxattr(path.as_ref(), SELINUX_XATTR, con.as_bytes(), XattrFlags::empty()) {
+        if let Err(e) = lsetxattr(
+            path.as_ref(),
+            SELINUX_XATTR,
+            con.as_bytes(),
+            XattrFlags::empty(),
+        ) {
             let io_err = std::io::Error::from(e);
-            log::debug!("lsetfilecon: {} -> {} failed: {}", path.as_ref().display(), con, io_err);
+            log::debug!(
+                "lsetfilecon: {} -> {} failed: {}",
+                path.as_ref().display(),
+                con,
+                io_err
+            );
         }
     }
     Ok(())
@@ -166,7 +190,10 @@ pub fn lsetfilecon<P: AsRef<Path>>(path: P, con: &str) -> Result<()> {
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub fn lgetfilecon<P: AsRef<Path>>(path: P) -> Result<String> {
     let con = extattr::lgetxattr(path.as_ref(), SELINUX_XATTR).with_context(|| {
-        format!("Failed to get SELinux context for {}", path.as_ref().display())
+        format!(
+            "Failed to get SELinux context for {}",
+            path.as_ref().display()
+        )
     })?;
     Ok(String::from_utf8_lossy(&con).to_string())
 }
@@ -355,53 +382,89 @@ fn make_device_node(path: &Path, mode: u32, rdev: u64) -> Result<()> {
     Ok(())
 }
 
-fn native_cp_r(src: &Path, dst: &Path) -> Result<()> {
+fn apply_system_context(current: &Path, relative: &Path) -> Result<()> {
+    if let Some(name) = current.file_name().and_then(|n| n.to_str()) {
+        if (name == "upperdir" || name == "workdir")
+            && let Some(parent) = current.parent()
+            && let Ok(ctx) = lgetfilecon(parent)
+        {
+            return lsetfilecon(current, &ctx);
+        }
+    }
+
+    let system_path = Path::new("/").join(relative);
+
+    if system_path.exists() {
+        copy_path_context(&system_path, current)?;
+    } else if let Some(parent) = system_path.parent()
+        && parent.exists()
+    {
+        copy_path_context(parent, current)?;
+    } else {
+        lsetfilecon(current, DEFAULT_CONTEXT)?;
+    }
+    Ok(())
+}
+
+fn native_cp_r(src: &Path, dst: &Path, relative: &Path, repair: bool) -> Result<()> {
     if !dst.exists() {
-        create_dir_all(dst)?;
-        let src_meta = src.metadata()?;
-        fs::set_permissions(dst, src_meta.permissions())?;
-        let _ = copy_extended_attributes(src, dst);
+        if src.is_dir() {
+            create_dir_all(dst)?;
+        }
+        if let Ok(src_meta) = src.metadata() {
+            let _ = fs::set_permissions(dst, src_meta.permissions());
+        }
+        if repair && relative.as_os_str().is_empty() {
+            let _ = apply_system_context(dst, relative);
+        } else if !repair {
+            let _ = copy_extended_attributes(src, dst);
+        }
     }
 
     for entry in fs::read_dir(src)? {
         let entry = entry?;
         let src_path = entry.path();
-        let dst_path = dst.join(entry.file_name());
+        let file_name = entry.file_name();
+        let dst_path = dst.join(&file_name);
+        let next_relative = relative.join(&file_name);
 
         let metadata = entry.metadata()?;
         let ft = metadata.file_type();
 
         if ft.is_dir() {
-            native_cp_r(&src_path, &dst_path)?;
+            native_cp_r(&src_path, &dst_path, &next_relative, repair)?;
         } else if ft.is_symlink() {
-            let link_target = fs::read_link(&src_path)?;
             if dst_path.exists() {
                 remove_file(&dst_path)?;
             }
+            let link_target = fs::read_link(&src_path)?;
             symlink(&link_target, &dst_path)?;
-            let _ = copy_extended_attributes(&src_path, &dst_path);
         } else if ft.is_char_device() || ft.is_block_device() || ft.is_fifo() {
-             if dst_path.exists() {
-                 remove_file(&dst_path)?;
-             }
-             let mode = metadata.permissions().mode();
-             let rdev = metadata.rdev();
-             make_device_node(&dst_path, mode, rdev)?;
-             let _ = copy_extended_attributes(&src_path, &dst_path);
+            if dst_path.exists() {
+                remove_file(&dst_path)?;
+            }
+            let mode = metadata.permissions().mode();
+            let rdev = metadata.rdev();
+            make_device_node(&dst_path, mode, rdev)?;
         } else {
             reflink_or_copy(&src_path, &dst_path)?;
+        }
+
+        if repair {
+            let _ = apply_system_context(&dst_path, &next_relative);
+        } else {
             let _ = copy_extended_attributes(&src_path, &dst_path);
         }
     }
     Ok(())
 }
 
-pub fn sync_dir(src: &Path, dst: &Path) -> Result<()> {
+pub fn sync_dir(src: &Path, dst: &Path, repair_context: bool) -> Result<()> {
     if !src.exists() {
         return Ok(());
     }
     ensure_dir_exists(dst)?;
-    native_cp_r(src, dst).with_context(|| {
+    native_cp_r(src, dst, Path::new(""), repair_context).with_context(|| {
         format!(
             "Failed to natively sync {} to {}",
             src.display(),
