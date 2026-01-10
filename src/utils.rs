@@ -89,27 +89,10 @@ pub fn init_logging(verbose: bool, log_path: &Path) -> Result<WorkerGuard> {
         .with_writer(non_blocking)
         .event_format(SimpleFormatter);
 
-    let registry = tracing_subscriber::registry().with(filter).with(file_layer);
-
-    #[cfg(target_os = "android")]
-    {
-        let android_layer =
-            tracing_android::layer("HybridMount")
-                .unwrap()
-                .with_filter(if verbose {
-                    EnvFilter::new("debug")
-                } else {
-                    EnvFilter::new("info")
-                });
-
-        registry.with(android_layer).init();
-    }
-
-    #[cfg(not(target_os = "android"))]
-    {
-        registry.init();
-    }
-
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(file_layer)
+        .init();
     tracing_log::LogTracer::init().ok();
 
     let log_path_buf = log_path.to_path_buf();
