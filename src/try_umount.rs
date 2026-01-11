@@ -13,11 +13,17 @@ pub fn send_unmountable<P>(target: P) -> Result<()>
 where
     P: AsRef<Path>,
 {
+    if !crate::utils::KSU.load(std::sync::atomic::Ordering::Relaxed) {
+        return Ok(());
+    }
     LIST.lock().unwrap().add(target);
     Ok(())
 }
 
 pub fn commit() -> Result<()> {
+    if !crate::utils::KSU.load(std::sync::atomic::Ordering::Relaxed) {
+        return Ok(());
+    }
     let mut list = LIST
         .lock()
         .map_err(|_| anyhow::anyhow!("Failed to lock unmount list"))?;
@@ -27,6 +33,9 @@ pub fn commit() -> Result<()> {
 }
 
 pub fn ksu_nuke_sysfs(target: &str) -> Result<()> {
+    if !crate::utils::KSU.load(std::sync::atomic::Ordering::Relaxed) {
+        return Ok(());
+    }
     NukeExt4Sysfs::new().add(target).execute()?;
     Ok(())
 }

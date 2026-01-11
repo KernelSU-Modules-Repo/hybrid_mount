@@ -207,11 +207,7 @@ fn main() -> Result<()> {
         tracing::debug!("Kernel Version: {}", version.trim());
     }
 
-    if let Some(ver) = ksu::version() {
-        tracing::info!("KernelSU Version: {}", ver);
-    } else {
-        tracing::warn!("KernelSU not detected or driver not accessible!");
-    }
+    utils::check_ksu();
 
     if config.disable_umount {
         tracing::warn!("!! Umount is DISABLED via config.");

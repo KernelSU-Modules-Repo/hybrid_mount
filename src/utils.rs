@@ -9,7 +9,7 @@ use std::{
     },
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::OnceLock,
+    sync::{OnceLock, atomic::AtomicBool},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -40,6 +40,8 @@ const CONTEXT_SYSTEM: &str = "u:object_r:system_file:s0";
 const CONTEXT_VENDOR: &str = "u:object_r:vendor_file:s0";
 const OVERLAY_TEST_XATTR: &str = "trusted.overlay.test";
 
+pub static KSU: AtomicBool = AtomicBool::new(false);
+
 #[allow(dead_code)]
 const XATTR_TEST_FILE: &str = ".xattr_test";
 
@@ -63,6 +65,14 @@ where
         ctx.field_format().format_fields(writer.by_ref(), event)?;
         writeln!(writer)
     }
+}
+
+pub fn check_ksu() {
+    let status = ksu::version().is_some_and(|v| {
+        tracing::info!("KernelSU Version: {v}");
+        true
+    });
+    KSU.store(status, std::sync::atomic::Ordering::Relaxed);
 }
 
 pub fn init_logging(
