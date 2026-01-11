@@ -16,8 +16,7 @@ use serde::Serialize;
 use crate::try_umount::send_unmountable;
 use crate::{
     core::state::RuntimeState,
-    defs,
-    mount::overlayfs::{overlayfs, utils as overlay_utils},
+    mount::overlayfs::{utils as overlay_utils},
     utils,
 };
 
