@@ -401,7 +401,27 @@ pub fn is_overlay_xattr_supported(path: &Path) -> bool {
             tracing::debug!("XATTR Check: trusted.* xattr not supported: {}", err);
             false
         } else {
-            true
+            let mut buf = [0u8; 16];
+            let get_ret = libc::lgetxattr(
+                c_path.as_ptr(),
+                c_key.as_ptr(),
+                buf.as_mut_ptr() as *mut libc::c_void,
+                buf.len(),
+            );
+
+            if get_ret > 0 {
+                let data = &buf[..get_ret as usize];
+                if data == c_val.as_bytes() {
+                    true
+                } else {
+                    tracing::warn!("XATTR Check: verification failed (content mismatch)");
+                    false
+                }
+            } else {
+                let err = std::io::Error::last_os_error();
+                tracing::warn!("XATTR Check: set success but get failed: {}", err);
+                false
+            }
         }
     };
 
