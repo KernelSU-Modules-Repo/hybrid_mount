@@ -1,6 +1,17 @@
-## v2.0.3
+## v2.0.4
 
 Changes since v2.0.25:
+* Fix: Enhance system stability and sync reliability
+* fix: make clippy happy
+* fix: magic mount sync logic
+* Add Ukrainian localization and fix Config UI (#120)
+* chore: update license headers [skip ci]
+* Reapply "fix(mount): register missing mount points to umount list"
+* Revert "fix(mount): register missing mount points to umount list"
+* fix(core): set mount propagation to private for storage
+* fix: remove /apex from BUILTIN_PARTITIONS
+* fix(mount): register missing mount points to umount list
+* chore(release): bump version to v2.0.3 [skip ci]
 * fix dead code warnings in executor and utils
 * fix: make clippy happy
 * refactor(core): use hybrid_mnt_dir for magic mount workspace
