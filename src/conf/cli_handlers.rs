@@ -9,7 +9,6 @@ use crate::{
         config::{CONFIG_FILE_DEFAULT, Config},
     },
     core::{executor, granary, inventory, modules, planner, storage},
-    utils,
 };
 
 #[derive(Serialize)]
@@ -112,7 +111,8 @@ pub fn handle_conflicts(cli: &Cli) -> Result<()> {
 
     let report = plan.analyze_conflicts();
 
-    let json = serde_json::to_string(&report.details).context("Failed to serialize conflict report")?;
+    let json =
+        serde_json::to_string(&report.details).context("Failed to serialize conflict report")?;
 
     println!("{}", json);
 
