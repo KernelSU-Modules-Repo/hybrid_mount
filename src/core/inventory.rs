@@ -1,6 +1,3 @@
-// Copyright 2025 Meta-Hybrid Mount Authors
-// SPDX-License-Identifier: GPL-3.0-or-later
-
 use std::{
     collections::HashMap,
     fs,
@@ -31,15 +28,35 @@ pub struct ModuleRules {
 }
 
 impl ModuleRules {
-    pub fn load(module_dir: &Path, module_id: &str) -> Self {
+    pub fn load(module_dir: &Path, module_id: &str, cfg: &config::Config) -> Self {
         let mut rules = ModuleRules::default();
+
+        // 1. Apply global default from config
+        rules.default_mode = match cfg.default_mode {
+            config::DefaultMode::Overlay => MountMode::Overlay,
+            config::DefaultMode::Magic => MountMode::Magic,
+        };
+
+        // Helper struct for partial loading to avoid overwriting defaults with serde defaults
+        #[derive(Deserialize)]
+        struct PartialRules {
+            default_mode: Option<MountMode>,
+            paths: Option<HashMap<String, MountMode>>,
+        }
 
         let internal_config = module_dir.join("hybrid_rules.json");
 
         if internal_config.exists() {
             match fs::read_to_string(&internal_config) {
-                Ok(content) => match serde_json::from_str::<ModuleRules>(&content) {
-                    Ok(r) => rules = r,
+                Ok(content) => match serde_json::from_str::<PartialRules>(&content) {
+                    Ok(partial) => {
+                        if let Some(mode) = partial.default_mode {
+                            rules.default_mode = mode;
+                        }
+                        if let Some(paths) = partial.paths {
+                            rules.paths = paths;
+                        }
+                    }
                     Err(e) => {
                         tracing::warn!("Failed to parse rules for module '{}': {}", module_id, e)
                     }
@@ -54,11 +71,14 @@ impl ModuleRules {
 
         if user_config.exists() {
             match fs::read_to_string(&user_config) {
-                Ok(content) => match serde_json::from_str::<ModuleRules>(&content) {
+                Ok(content) => match serde_json::from_str::<PartialRules>(&content) {
                     Ok(user_rules) => {
-                        rules.default_mode = user_rules.default_mode;
-
-                        rules.paths.extend(user_rules.paths);
+                        if let Some(mode) = user_rules.default_mode {
+                            rules.default_mode = mode;
+                        }
+                        if let Some(paths) = user_rules.paths {
+                            rules.paths.extend(paths);
+                        }
                     }
                     Err(e) => {
                         tracing::warn!("Failed to parse user rules for '{}': {}", module_id, e)
@@ -89,7 +109,7 @@ pub struct Module {
     pub rules: ModuleRules,
 }
 
-pub fn scan(source_dir: &Path, _config: &config::Config) -> Result<Vec<Module>> {
+pub fn scan(source_dir: &Path, cfg: &config::Config) -> Result<Vec<Module>> {
     if !source_dir.exists() {
         return Ok(Vec::new());
     }
@@ -121,7 +141,7 @@ pub fn scan(source_dir: &Path, _config: &config::Config) -> Result<Vec<Module>> 
                 return None;
             }
 
-            let rules = ModuleRules::load(&path, &id);
+            let rules = ModuleRules::load(&path, &id, cfg);
 
             Some(Module {
                 id,
