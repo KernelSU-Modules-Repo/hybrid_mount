@@ -1,12 +1,10 @@
-## v2.0.72
+## v2.1.0
 
-Changes since v2.0.71:
-* fix: fix build
-* Revert "fix(magic_mount): trying fix magic mount scan modules is empty (#121)"
-* refactror(logger): use new way to init logger
-* chore: update lints workflow to include push events
-* chore(deps): bump
-* build: disbale opt-level = "z"
-* chore(deps): bump chrono from 0.4.42 to 0.4.43 (#135)
-* chore(deps): bump ksu from `47459ed` to `8516151` (#136)
-* chore(release): bump version to v2.0.71 [skip ci]
+Changes since v2.0.72:
+* fix: improve log formatting for conflict details in main function
+* workflow: fix lint permission
+* refactor: remove 'logs' tab from visible tabs and update icon description
+* refactor: remove LogsTab from webui
+* Enhance Telegram notification condition in CI (#137)
+* fix: trying fix magic mount scan (#121)
+* chore(release): bump version to v2.0.72 [skip ci]
