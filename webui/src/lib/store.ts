@@ -180,7 +180,6 @@ const createGlobalStore = () => {
   }
 
   async function init() {
-    // Fix: Default to en-US
     const savedLang = localStorage.getItem("lang") || "en-US";
     setLangSignal(savedLang);
     await loadLocale(savedLang);
@@ -199,9 +198,7 @@ const createGlobalStore = () => {
       if (sysColor) {
         setSeed(sysColor);
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
 
     await Promise.all([loadConfig(), loadStatus()]);
   }
@@ -212,7 +209,7 @@ const createGlobalStore = () => {
       const data = await API.loadConfig();
       setConfig(data);
     } catch (e) {
-      showToast(L().config?.loadError || 'Failed to load config', 'error');
+      showToast(L().config?.loadError || "Failed to load config", "error");
     }
     setLoadingConfig(false);
   }
@@ -221,15 +218,9 @@ const createGlobalStore = () => {
     setSavingConfig(true);
     try {
       await API.saveConfig(config());
-<<<<<<<
       showToast(L().common?.saved || "Saved", "success");
-    } catch {
-      showToast("Failed to save config", "error");
-=======
-      showToast(L().common?.saved || 'Saved', 'success');
     } catch (e) {
-      showToast(L().config?.saveFailed || 'Failed to save config', 'error');
->>>>>>>
+      showToast(L().config?.saveFailed || "Failed to save config", "error");
     }
     setSavingConfig(false);
   }
@@ -239,18 +230,12 @@ const createGlobalStore = () => {
     try {
       await API.resetConfig();
       await loadConfig();
-<<<<<<<
       showToast(
         L().config?.resetSuccess || "Config reset to defaults",
         "success",
       );
-    } catch {
-      showToast("Failed to reset config", "error");
-=======
-      showToast(L().config?.resetSuccess || 'Config reset to defaults', 'success');
     } catch (e) {
-      showToast(L().config?.saveFailed || 'Failed to reset config', 'error');
->>>>>>>
+      showToast(L().config?.saveFailed || "Failed to reset config", "error");
     }
     setSavingConfig(false);
   }
@@ -260,13 +245,8 @@ const createGlobalStore = () => {
     try {
       const data = await API.scanModules(config().moduledir);
       setModules(data);
-<<<<<<<
-    } catch {
-      showToast("Failed to load modules", "error");
-=======
     } catch (e) {
-      showToast(L().modules?.scanError || 'Failed to load modules', 'error');
->>>>>>>
+      showToast(L().modules?.scanError || "Failed to load modules", "error");
     }
     setLoadingModules(false);
   }
@@ -275,42 +255,16 @@ const createGlobalStore = () => {
     setSavingModules(true);
     try {
       await API.saveModules(modules());
-<<<<<<<
       showToast(L().common?.saved || "Saved", "success");
-    } catch {
-      showToast("Failed to save module modes", "error");
-=======
-      showToast(L().common?.saved || 'Saved', 'success');
     } catch (e) {
-      showToast(L().modules?.saveFailed || 'Failed to save module modes', 'error');
->>>>>>>
+      showToast(
+        L().modules?.saveFailed || "Failed to save module modes",
+        "error",
+      );
     }
     setSavingModules(false);
   }
 
-<<<<<<<
-
-=======
-  async function loadLogs(silent: boolean = false) {
-    if (!silent) setLoadingLogs(true);
-    try {
-      const rawLogs = await API.readLogs();
-      const parsed = rawLogs.split('\n').map((line: string) => {
-        const text = line.replace(/^[\d-]{10}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?\s*/, '');
-        let type: LogEntry['type'] = 'info';
-        if (text.includes('[E]') || text.includes('[ERROR]')) type = 'error';
-        else if (text.includes('[W]') || text.includes('[WARN]')) type = 'warn';
-        else if (text.includes('[D]') || text.includes('[DEBUG]')) type = 'debug';
-        return { text, type };
-      });
-      setLogs(parsed);
-    } catch (e) {
-      setLogs([{ text: L().logs?.readFailed || "Failed to load logs.", type: 'error' }]);
-    }
-    setLoadingLogs(false);
-  }
-
->>>>>>>
   async function loadStatus() {
     setLoadingStatus(true);
     try {

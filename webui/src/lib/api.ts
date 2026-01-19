@@ -126,16 +126,20 @@ const RealAPI: AppAPI = {
     }
     return [];
   },
-  saveModules: async (_modules: Module[]): Promise<void> => { return; },
+  saveModules: async (_modules: Module[]): Promise<void> => {
+    return;
+  },
   readLogs: async (): Promise<string> => {
     if (!ksuExec) return "";
     try {
-      const { errno, stdout } = await ksuExec(`cat "${DEFAULT_CONFIG.logfile}"`);
+      const { errno, stdout } = await ksuExec(
+        `cat "${DEFAULT_CONFIG.logfile}"`,
+      );
       if (errno === 0 && stdout) return stdout;
     } catch (e) {}
     return "";
   },
-  
+
   // Reverted to standard command execution
   saveModuleRules: async (
     moduleId: string,
