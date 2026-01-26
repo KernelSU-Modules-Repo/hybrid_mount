@@ -1,3 +1,8 @@
+/**
+ * Copyright 2026 Hybrid Mount Developers
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 .top-bar {
   flex-shrink: 0;
   background-color: var(--md-sys-color-surface-container);

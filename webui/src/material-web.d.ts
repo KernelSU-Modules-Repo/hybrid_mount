@@ -1,3 +1,8 @@
+/**
+ * Copyright 2026 Hybrid Mount Developers
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 import type { JSX } from "solid-js";
 
 type BaseProps = JSX.HTMLAttributes<HTMLElement>;

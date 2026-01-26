@@ -1,3 +1,8 @@
+/**
+ * Copyright 2026 Hybrid Mount Developers
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import solid from "eslint-plugin-solid";
