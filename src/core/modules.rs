@@ -174,13 +174,11 @@ pub fn update_description(storage_mode: &str, overlay_count: usize, magic_count:
     }
 
     let mode_str = match storage_mode {
-        "tmpfs" => "Tmpfs",
         "erofs" => "EROFS",
         _ => "Ext4",
     };
 
     let status_emoji = match storage_mode {
-        "tmpfs" => "🐾",
         "erofs" => "🚀",
         _ => "💿",
     };

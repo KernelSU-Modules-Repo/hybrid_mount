@@ -66,10 +66,6 @@ impl MountController<Init> {
             &self.config.moduledir,
             matches!(
                 self.config.overlay_mode,
-                crate::conf::config::OverlayMode::Ext4
-            ),
-            matches!(
-                self.config.overlay_mode,
                 crate::conf::config::OverlayMode::Erofs
             ),
             &self.config.mountsource,

@@ -41,7 +41,6 @@ impl Default for BackupConfig {
 #[serde(rename_all = "lowercase")]
 pub enum OverlayMode {
     #[default]
-    Tmpfs,
     Ext4,
     Erofs,
 }

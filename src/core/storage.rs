@@ -123,7 +123,7 @@ pub fn setup(
     mnt_base: &Path,
     img_path: &Path,
     moduledir: &Path,
-    force_ext4: bool,
+
     use_erofs: bool,
     mount_source: &str,
     disable_umount: bool,
@@ -164,24 +164,6 @@ pub fn setup(
         });
     }
 
-    if !force_ext4 && try_setup_tmpfs(mnt_base, mount_source)? {
-        make_private(mnt_base);
-
-        try_hide(mnt_base);
-
-        let erofs_path = img_path.with_extension("erofs");
-
-        if erofs_path.exists() {
-            let _ = fs::remove_file(erofs_path);
-        }
-
-        return Ok(StorageHandle {
-            mount_point: mnt_base.to_path_buf(),
-            mode: "tmpfs".to_string(),
-            backing_image: None,
-        });
-    }
-
     let handle = setup_ext4_image(mnt_base, img_path, moduledir)?;
 
     make_private(mnt_base);
@@ -189,22 +171,6 @@ pub fn setup(
     try_hide(mnt_base);
 
     Ok(handle)
-}
-
-fn try_setup_tmpfs(target: &Path, mount_source: &str) -> Result<bool> {
-    if utils::mount_tmpfs(target, mount_source).is_ok() {
-        if utils::is_overlay_xattr_supported().unwrap_or(false) {
-            log::info!("Tmpfs mounted and supports xattrs (CONFIG_TMPFS_XATTR=y).");
-            return Ok(true);
-        } else {
-            log::warn!("Tmpfs mounted but XATTRs (trusted.*) are NOT supported.");
-            log::warn!(">> Your kernel likely lacks CONFIG_TMPFS_XATTR=y.");
-            log::warn!(">> Falling back to legacy Ext4 image mode.");
-            let _ = umount(target, UnmountFlags::DETACH);
-        }
-    }
-
-    Ok(false)
 }
 
 fn setup_ext4_image(target: &Path, img_path: &Path, moduledir: &Path) -> Result<StorageHandle> {
@@ -336,15 +302,7 @@ pub fn print_status() -> Result<()> {
         percent = (used * 100).checked_div(total).unwrap_or(0) as u8;
     }
 
-    let mut supported_modes = vec!["ext4".to_string(), "erofs".to_string()];
-    let check_dir = Path::new("/data/local/tmp/.mh_xattr_chk");
-    if utils::mount_tmpfs(check_dir, "mh_check").is_ok() {
-        if utils::is_overlay_xattr_supported().unwrap_or(false) {
-            supported_modes.insert(0, "tmpfs".to_string());
-        }
-        let _ = umount(check_dir, UnmountFlags::DETACH);
-        let _ = fs::remove_dir(check_dir);
-    }
+    let supported_modes = vec!["ext4".to_string(), "erofs".to_string()];
 
     let status = StorageStatus {
         mode,
