@@ -7,7 +7,7 @@ use std::{
         ffi::OsStrExt,
         fs::{FileTypeExt, MetadataExt, PermissionsExt, symlink},
     },
-    path::{Path, PathBuf},
+    path::Path,
     process::{Command, Stdio},
     sync::{OnceLock, atomic::AtomicBool},
     time::{SystemTime, UNIX_EPOCH},

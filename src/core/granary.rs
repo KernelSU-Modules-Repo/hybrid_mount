@@ -1,7 +1,6 @@
 use std::{
     fs,
-    io::Write,
-    os::fd::AsFd,
+    io::{Read, Seek, Write},
     path::Path,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -36,7 +35,7 @@ const BACKUP_DIR: &str = "/data/adb/meta-hybrid/backups";
 pub fn ensure_recovery_state() -> Result<RecoveryStatus> {
     let path = Path::new(RECOVERY_COUNTER_FILE);
 
-    let file = fs::File::options()
+    let mut file = fs::File::options()
         .read(true)
         .write(true)
         .create(true)
@@ -46,14 +45,16 @@ pub fn ensure_recovery_state() -> Result<RecoveryStatus> {
     rustix::fs::flock(&file, rustix::fs::FlockOperation::LockExclusive)
         .context("Failed to lock boot counter")?;
 
-    let mut count = 0;
-    let content = std::io::read_to_string(file.as_fd()).unwrap_or_default();
-    count = content.trim().parse::<u8>().unwrap_or(0);
+    let mut content = String::new();
+    // Read directly from the File struct, ignoring errors if empty
+    let _ = file.read_to_string(&mut content);
+
+    let mut count = content.trim().parse::<u8>().unwrap_or(0);
 
     count += 1;
 
-    file.set_len(0)?;
-    let mut file = file;
+    file.rewind()?; // Rewind to start before writing
+    file.set_len(0)?; // Truncate file
     write!(file, "{}", count)?;
     file.sync_all()
         .context("Failed to sync boot counter to disk")?;
