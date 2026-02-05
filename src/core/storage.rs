@@ -56,8 +56,6 @@ impl StorageHandle {
             mount_erofs_image(image_path, final_target)
                 .context("Failed to mount finalized EROFS image")?;
 
-            nuke::nuke_path(image_path);
-
             if let Err(e) = mount_change(final_target, MountPropagationFlags::PRIVATE) {
                 log::warn!("Failed to make EROFS storage private: {}", e);
             }
