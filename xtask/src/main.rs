@@ -252,20 +252,20 @@ fn decrypt_and_sign(
 fn build_webui(version: &str) -> Result<()> {
     generate_webui_constants(version)?;
     let webui_dir = Path::new("webui");
-    let npm = if cfg!(windows) { "npm.cmd" } else { "npm" };
-    let status = Command::new(npm)
+    let pnpm = if cfg!(windows) { "pnpm.cmd" } else { "pnpm" };
+    let status = Command::new(pnpm)
         .current_dir(webui_dir)
         .arg("install")
         .status()?;
     if !status.success() {
-        anyhow::bail!("npm install failed");
+        anyhow::bail!("pnpm install failed");
     }
-    let status = Command::new(npm)
+    let status = Command::new(pnpm)
         .current_dir(webui_dir)
         .args(["run", "build"])
         .status()?;
     if !status.success() {
-        anyhow::bail!("npm run build failed");
+        anyhow::bail!("pnpm run build failed");
     }
     Ok(())
 }
