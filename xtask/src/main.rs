@@ -1,4 +1,11 @@
-use std::{env, fs, path::Path, process::Command};
+// Copyright 2026 Hybrid Mount Developers
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
+};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
@@ -6,6 +13,7 @@ use fs_extra::{
     dir::{self},
     file::{self},
 };
+use tempfile::NamedTempFile;
 use zip::{CompressionMethod, write::FileOptions};
 
 mod zip_ext;
@@ -15,6 +23,8 @@ use crate::zip_ext::zip_create_from_directory_with_options;
 enum Arch {
     #[value(name = "arm64")]
     Arm64,
+    #[value(name = "arm")]
+    Arm,
     #[value(name = "x86_64")]
     X86_64,
 }
@@ -23,12 +33,14 @@ impl Arch {
     fn target(&self) -> &'static str {
         match self {
             Arch::Arm64 => "arm64-v8a",
+            Arch::Arm => "armeabi-v7a",
             Arch::X86_64 => "x86_64",
         }
     }
     fn android_abi(&self) -> &'static str {
         match self {
             Arch::Arm64 => "aarch64-linux-android",
+            Arch::Arm => "armv7-linux-androideabi",
             Arch::X86_64 => "x86_64-linux-android",
         }
     }
@@ -50,6 +62,12 @@ enum Commands {
         skip_webui: bool,
         #[arg(long, value_enum)]
         arch: Option<Arch>,
+
+        #[arg(long, default_value = "private.enc")]
+        key_enc: PathBuf,
+
+        #[arg(long, default_value = "cert.pem")]
+        cert: PathBuf,
     },
     Lint,
 }
@@ -61,8 +79,10 @@ fn main() -> Result<()> {
             release,
             skip_webui,
             arch,
+            key_enc,
+            cert,
         } => {
-            build_full(release, skip_webui, arch)?;
+            build_full(release, skip_webui, arch, &key_enc, &cert)?;
         }
         Commands::Lint => {
             run_clippy()?;
@@ -97,7 +117,13 @@ fn run_clippy() -> Result<()> {
     Ok(())
 }
 
-fn build_full(release: bool, skip_webui: bool, target_arch: Option<Arch>) -> Result<()> {
+fn build_full(
+    release: bool,
+    skip_webui: bool,
+    target_arch: Option<Arch>,
+    key_enc_path: &Path,
+    cert_path: &Path,
+) -> Result<()> {
     let output_dir = Path::new("output");
     let stage_dir = output_dir.join("staging");
     if output_dir.exists() {
@@ -113,7 +139,7 @@ fn build_full(release: bool, skip_webui: bool, target_arch: Option<Arch>) -> Res
     let archs_to_build = if let Some(selected) = target_arch {
         vec![selected]
     } else {
-        vec![Arch::Arm64, Arch::X86_64]
+        vec![Arch::Arm64, Arch::Arm, Arch::X86_64]
     };
 
     for arch in archs_to_build {
@@ -154,27 +180,92 @@ fn build_full(release: bool, skip_webui: bool, target_arch: Option<Arch>) -> Res
         .compression_level(Some(9));
     zip_create_from_directory_with_options(&zip_file, &stage_dir, |_| zip_options)?;
     println!(":: Build Complete: {}", zip_file.display());
+    if let Ok(password) = env::var("META_HYBRID_SIGN_PASSWORD")
+        && !password.is_empty()
+    {
+        let abs_key_enc = key_enc_path;
+        let abs_cert = cert_path;
 
+        if abs_key_enc.exists() && abs_cert.exists() {
+            decrypt_and_sign(&zip_file, abs_key_enc, abs_cert, &password)?;
+        } else {
+            println!(":: Skipping signature: private.enc or cert.pem not found at root.");
+        }
+    } else {
+        println!(":: Skipping signature: META_HYBRID_SIGN_PASSWORD not set.");
+    }
+
+    Ok(())
+}
+
+fn decrypt_and_sign(
+    zip_path: &Path,
+    enc_key_path: &Path,
+    cert_path: &Path,
+    password: &str,
+) -> Result<()> {
+    println!(":: Decrypting private key...");
+    let temp_key = NamedTempFile::new()?;
+    let temp_key_path = temp_key.path();
+    let status = Command::new("openssl")
+        .args(["aes-256-cbc", "-d", "-pbkdf2", "-in"])
+        .arg(enc_key_path)
+        .arg("-out")
+        .arg(temp_key_path)
+        .arg("-pass")
+        .arg("env:OPENSSL_PASS_VAR")
+        .env("OPENSSL_PASS_VAR", password)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()
+        .context("Failed to execute openssl for decryption")?;
+
+    if !status.success() {
+        anyhow::bail!("Failed to decrypt private key. Check password and openssl version.");
+    }
+
+    println!(":: Signing module with ksusig...");
+    let output_path = zip_path.with_file_name(format!(
+        "{}-signed.zip",
+        zip_path.file_stem().unwrap_or_default().to_string_lossy()
+    ));
+
+    let status = Command::new("ksusig")
+        .arg("sign")
+        .arg("--key")
+        .arg(temp_key_path)
+        .arg("--cert")
+        .arg(cert_path)
+        .arg(zip_path)
+        .arg(&output_path)
+        .status()
+        .context("Failed to execute ksusig")?;
+
+    if !status.success() {
+        anyhow::bail!("ksusig signing failed.");
+    }
+    fs::rename(&output_path, zip_path)?;
+    println!(":: Signed successfully!");
     Ok(())
 }
 
 fn build_webui(version: &str) -> Result<()> {
     generate_webui_constants(version)?;
     let webui_dir = Path::new("webui");
-    let pnpm = if cfg!(windows) { "pnpm.cmd" } else { "pnpm" };
-    let status = Command::new(pnpm)
+    let npm = if cfg!(windows) { "npm.cmd" } else { "npm" };
+    let status = Command::new(npm)
         .current_dir(webui_dir)
         .arg("install")
         .status()?;
     if !status.success() {
-        anyhow::bail!("pnpm install failed");
+        anyhow::bail!("npm install failed");
     }
-    let status = Command::new(pnpm)
+    let status = Command::new(npm)
         .current_dir(webui_dir)
         .args(["run", "build"])
         .status()?;
     if !status.success() {
-        anyhow::bail!("pnpm run build failed");
+        anyhow::bail!("npm run build failed");
     }
     Ok(())
 }

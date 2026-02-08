@@ -747,7 +747,7 @@ checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 [[package]]
 name = "loopdev"
 version = "0.5.0"
-source = "git+https://github.com/Kernel-SU/loopdev#7a921f8d966477a645b1188732fac486c71a68ef"
+source = "git+https://github.com/Hybrid-Mount/loopdev.git#f87f6c35f12c4acb6a4715dd43dec0280e8714a2"
 dependencies = [
  "errno 0.2.8",
  "libc",
