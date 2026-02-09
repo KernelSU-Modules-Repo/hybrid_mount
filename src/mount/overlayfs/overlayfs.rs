@@ -4,6 +4,7 @@ use std::{
     ffi::CString,
     os::fd::AsFd,
     path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{Context, Result, bail};
@@ -16,62 +17,34 @@ use rustix::{
     },
 };
 
-use crate::mount::{overlayfs::utils::umount_dir, umount_mgr::send_umountable};
+use crate::{
+    defs,
+    mount::{overlayfs::utils::umount_dir, umount_mgr::send_umountable},
+    utils::ensure_dir_exists,
+};
 
-const MAX_LOWERDIR_COUNT: usize = 128;
-const MAX_ARG_LENGTH: usize = 3000;
+const MAX_LAYERS: usize = 64;
 
-pub fn mount_overlayfs(
+fn mount_overlay_core(
     lower_dirs: &[String],
-    lowest: &str,
-    upperdir: Option<PathBuf>,
-    workdir: Option<PathBuf>,
-    dest: impl AsRef<Path>,
+    upperdir: Option<&Path>,
+    workdir: Option<&Path>,
+    dest: &Path,
     mount_source: &str,
 ) -> Result<()> {
-    let mut valid_lower_dirs: Vec<&str> = lower_dirs
-        .iter()
-        .map(|s| s.as_str())
-        .chain(std::iter::once(lowest))
-        .collect();
+    let lowerdir_config = lower_dirs.join(":");
 
-    if valid_lower_dirs.len() > MAX_LOWERDIR_COUNT {
-        log::warn!(
-            "Too many overlay layers ({} > {}). Truncating to prevent failure. Some modules may not load.",
-            valid_lower_dirs.len(),
-            MAX_LOWERDIR_COUNT
-        );
-        valid_lower_dirs.truncate(MAX_LOWERDIR_COUNT);
-    }
-
-    let mut lowerdir_config = valid_lower_dirs.join(":");
-
-    if lowerdir_config.len() > MAX_ARG_LENGTH {
-        log::warn!(
-            "OverlayFS lowerdir argument too long ({} bytes). Truncating...",
-            lowerdir_config.len()
-        );
-        while lowerdir_config.len() > MAX_ARG_LENGTH && valid_lower_dirs.len() > 1 {
-            valid_lower_dirs.pop();
-            lowerdir_config = valid_lower_dirs.join(":");
-        }
-    }
-
-    log::info!(
-        "mount overlayfs on {:?}, layers={}, upperdir={:?}, workdir={:?}, source={}",
-        dest.as_ref(),
-        valid_lower_dirs.len(),
-        upperdir,
-        workdir,
+    log::debug!(
+        "core mount overlayfs on {:?}, layers={}, source={}",
+        dest,
+        lower_dirs.len(),
         mount_source
     );
 
     let upperdir_s = upperdir
-        .as_ref()
         .filter(|up| up.exists())
         .map(|e| e.display().to_string());
     let workdir_s = workdir
-        .as_ref()
         .filter(|wd| wd.exists())
         .map(|e| e.display().to_string());
 
@@ -90,7 +63,7 @@ pub fn mount_overlayfs(
             mount.as_fd(),
             "",
             CWD,
-            dest.as_ref(),
+            dest,
             MoveMountFlags::MOVE_MOUNT_F_EMPTY_PATH,
         )
     })();
@@ -109,13 +82,52 @@ pub fn mount_overlayfs(
         }
         mount(
             mount_source,
-            dest.as_ref(),
+            dest,
             "overlay",
             MountFlags::empty(),
             Some(CString::new(data)?.as_c_str()),
         )?;
     }
     Ok(())
+}
+
+pub fn mount_overlayfs(
+    lower_dirs: &[String],
+    lowest: &str,
+    upperdir: Option<PathBuf>,
+    workdir: Option<PathBuf>,
+    dest: impl AsRef<Path>,
+    mount_source: &str,
+) -> Result<()> {
+    let mut current_layers: Vec<String> = lower_dirs.to_vec();
+    current_layers.push(lowest.to_string());
+
+    while current_layers.len() > MAX_LAYERS {
+        let split_idx = current_layers.len().saturating_sub(MAX_LAYERS - 1);
+        let bottom_chunk: Vec<String> = current_layers.drain(split_idx..).collect();
+
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let staging_dir = Path::new(defs::RUN_DIR).join(format!("staging_{}", timestamp));
+
+        ensure_dir_exists(&staging_dir)?;
+
+        mount_overlay_core(&bottom_chunk, None, None, &staging_dir, mount_source)?;
+
+        let _ = send_umountable(&staging_dir);
+
+        current_layers.push(staging_dir.to_string_lossy().to_string());
+    }
+
+    mount_overlay_core(
+        &current_layers,
+        upperdir.as_deref(),
+        workdir.as_deref(),
+        dest.as_ref(),
+        mount_source,
+    )
 }
 
 pub fn bind_mount(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
