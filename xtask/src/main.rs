@@ -6,10 +6,21 @@ use std::{env, fs, path::Path, process::Command};
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use fs_extra::{dir, file};
+use serde::Deserialize;
 use zip::{CompressionMethod, write::FileOptions};
 
 mod zip_ext;
 use crate::zip_ext::zip_create_from_directory_with_options;
+
+#[derive(Deserialize)]
+struct Package {
+    version: String,
+}
+
+#[derive(Deserialize)]
+struct CargoConfig {
+    package: Package,
+}
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq)]
 enum Arch {
@@ -234,31 +245,20 @@ fn compile_core(release: bool, arch: Arch) -> Result<()> {
 }
 
 fn get_version() -> Result<String> {
-    if let Ok(v) = env::var("META_HYBRID_VERSION")
-        && !v.is_empty()
-    {
-        return Ok(v);
-    }
-    let output = Command::new("git")
-        .args(["describe", "--tags", "--always", "--dirty"])
-        .output();
-    if let Ok(o) = output
-        && o.status.success()
-    {
-        return Ok(String::from_utf8(o.stdout)?.trim().to_string());
-    }
-    let toml_path = Path::new("module/config.toml");
-    if toml_path.exists() {
-        let content = fs::read_to_string(toml_path)?;
-        for line in content.lines() {
-            if line.trim().starts_with("version")
-                && let Some(v) = line.split('"').nth(1)
-            {
-                return Ok(format!("{}-dev", v));
-            }
-        }
-    }
-    Ok("v0.0.0-unknown".to_string())
+    let toml = fs::read_to_string("Cargo.toml")?;
+    let data: CargoConfig = toml::from_str(&toml)?;
+    Ok(format!("{}-{}", data.package.version, cal_git_code()?))
+}
+
+fn cal_git_code() -> Result<i32> {
+    Ok(String::from_utf8(
+        Command::new("git")
+            .args(["rev-list", "--count", "HEAD"])
+            .output()?
+            .stdout,
+    )?
+    .trim()
+    .parse::<i32>()?)
 }
 
 fn update_module_prop(path: &Path, version: &str) -> Result<()> {
