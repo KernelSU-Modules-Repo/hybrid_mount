@@ -8,3 +8,4 @@ export const RUST_PATHS = {
   DAEMON_LOG: "/data/adb/meta-hybrid/daemon.log",
 } as const;
 export const BUILTIN_PARTITIONS = ["system", "vendor", "product", "system_ext", "odm", "oem", "apex"] as const;
+export const IS_RELEASE = false;

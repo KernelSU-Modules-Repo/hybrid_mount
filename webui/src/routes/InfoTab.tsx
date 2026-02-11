@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { createSignal, onMount, Show, For, createMemo } from "solid-js";
+import { createSignal, onMount, Show, For } from "solid-js";
 import { store } from "../lib/store";
 import { API } from "../lib/api";
 import { ICONS } from "../lib/constants";
+import { IS_RELEASE } from "../lib/constants_gen";
 import "./InfoTab.css";
 import Skeleton from "../components/Skeleton";
 import "@material/web/button/filled-tonal-button.js";
@@ -48,9 +49,7 @@ export default function InfoTab() {
   let donateDialogRef: HTMLElement | undefined;
   let qrDialogRef: HTMLElement | undefined;
 
-  const isDev = createMemo(() => {
-    return !/^v\d+\.\d+\.\d+$/.test(version());
-  });
+  const isDev = () => !IS_RELEASE;
 
   onMount(async () => {
     try {

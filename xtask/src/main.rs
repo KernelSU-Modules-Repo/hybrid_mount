@@ -122,7 +122,7 @@ fn build_full(release: bool, skip_webui: bool, target_arch: Option<Arch>) -> Res
     let version = get_version()?;
     if !skip_webui {
         println!(":: Building WebUI...");
-        build_webui(&version)?;
+        build_webui(&version, release)?;
     }
 
     let archs_to_build = if let Some(selected) = target_arch {
@@ -173,8 +173,8 @@ fn build_full(release: bool, skip_webui: bool, target_arch: Option<Arch>) -> Res
     Ok(())
 }
 
-fn build_webui(version: &str) -> Result<()> {
-    generate_webui_constants(version)?;
+fn build_webui(version: &str, is_release: bool) -> Result<()> {
+    generate_webui_constants(version, is_release)?;
     let webui_dir = Path::new("webui");
     let pnpm = if cfg!(windows) { "pnpm.cmd" } else { "pnpm" };
     let status = Command::new(pnpm)
@@ -194,11 +194,12 @@ fn build_webui(version: &str) -> Result<()> {
     Ok(())
 }
 
-fn generate_webui_constants(version: &str) -> Result<()> {
+fn generate_webui_constants(version: &str, is_release: bool) -> Result<()> {
     let path = Path::new("webui/src/lib/constants_gen.ts");
     let content = format!(
         r#"
 export const APP_VERSION = "{version}";
+export const IS_RELEASE = {is_release};
 export const RUST_PATHS = {{
   CONFIG: "/data/adb/meta-hybrid/config.toml",
   MODE_CONFIG: "/data/adb/meta-hybrid/module_mode.conf",
