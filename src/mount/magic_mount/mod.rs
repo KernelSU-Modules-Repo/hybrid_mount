@@ -334,8 +334,7 @@ where
         if let Err(e) = unmount(&tmp_dir, UnmountFlags::DETACH) {
             log::error!("failed to unmount tmp {e}");
         }
-        #[cfg(any(target_os = "android", target_os = "linux"))]
-        umount_mgr::commit()?;
+
         fs::remove_dir(tmp_dir).ok();
 
         let mounted_symbols = MOUNTED_SYMBOLS_FILES.load(std::sync::atomic::Ordering::Relaxed);
