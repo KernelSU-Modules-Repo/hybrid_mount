@@ -16,7 +16,7 @@ use rustix::mount::{
 };
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
-use crate::mount::umount_mgr::{self, send_umountable};
+use crate::mount::umount_mgr::send_umountable;
 use crate::{
     mount::{
         magic_mount::utils::{clone_symlink, collect_module_files, mount_mirror},

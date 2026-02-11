@@ -118,17 +118,15 @@ pub fn setup(
     mount_source: &str,
     disable_umount: bool,
 ) -> Result<StorageHandle> {
-    if img_path.exists() {
-        if let Err(e) = fs::remove_file(img_path) {
+    if img_path.exists()
+        && let Err(e) = fs::remove_file(img_path) {
             log::warn!("Failed to remove old ext4 image: {}", e);
         }
-    }
     let erofs_path = img_path.with_extension("erofs");
-    if erofs_path.exists() {
-        if let Err(e) = fs::remove_file(&erofs_path) {
+    if erofs_path.exists()
+        && let Err(e) = fs::remove_file(&erofs_path) {
             log::warn!("Failed to remove old erofs image: {}", e);
         }
-    }
 
     if is_mounted(mnt_base) {
         let _ = umount(mnt_base, UnmountFlags::DETACH);
