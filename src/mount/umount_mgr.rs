@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::Result;
 use ksu::{TryUmount, TryUmountFlags};
+use rustix::path::Arg;
 
 pub static TMPFS: OnceLock<String> = OnceLock::new();
 pub static LIST: LazyLock<Mutex<TryUmount>> = LazyLock::new(|| Mutex::new(TryUmount::new()));
@@ -19,17 +20,18 @@ where
         return Ok(());
     }
 
-    let path_str = target.as_ref().to_string_lossy().to_string();
+    let target = target.as_ref();
+    let path = target.as_str()?;
     let mut history = HISTORY
         .lock()
         .map_err(|_| anyhow::anyhow!("Failed to lock history mutex"))?;
 
-    if history.contains(&path_str) {
-        log::debug!("Ignored duplicate umount request: {}", path_str);
+    if history.contains(&path.to_string()) {
+        log::debug!("Ignored duplicate umount request: {path}");
         return Ok(());
     }
 
-    history.insert(path_str);
+    history.insert(path.to_string());
     LIST.lock()
         .map_err(|_| anyhow::anyhow!("Failed to lock umount list"))?
         .add(target);
