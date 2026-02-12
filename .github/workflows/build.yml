@@ -1,4 +1,4 @@
-name: Build Meta-Hybrid
+name: Build Hybrid-Mount
 
 on:
   push:
