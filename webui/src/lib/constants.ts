@@ -18,7 +18,7 @@ export const DEFAULT_CONFIG: AppConfig = {
 
 export const PATHS = {
   ...RUST_PATHS,
-  BINARY: "/data/adb/modules/hybrid-mount/hybrid-mount",
+  BINARY: "/data/adb/modules/hybrid_mount/hybrid-mount",
 };
 
 export const DEFAULT_SEED = "#6750A4";

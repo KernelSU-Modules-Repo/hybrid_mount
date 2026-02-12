@@ -108,7 +108,7 @@ fn prune_orphaned_modules(modules: &[Module], target_base: &Path) -> Result<()> 
         let name = name_os.to_string_lossy();
 
         if name != "lost+found"
-            && name != "hybrid-mount"
+            && name != "hybrid_mount"
             && !name.starts_with('.')
             && !active_ids.contains(name.as_ref())
         {

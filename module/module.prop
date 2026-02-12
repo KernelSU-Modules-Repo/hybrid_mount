@@ -1,6 +1,6 @@
 id=hybrid_mount
 name=Hybrid Mount
-version=v3.0.2-1188
+version=v3.0.2-1189
 versionCode=300002
 author=Hybrid Mount Developers
 updateJson=https://raw.githubusercontent.com/YuzakiKokuban/meta-hybrid_mount/master/update.json
