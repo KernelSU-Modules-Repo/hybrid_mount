@@ -12,6 +12,13 @@ pub static TMPFS: OnceLock<String> = OnceLock::new();
 pub static LIST: LazyLock<Mutex<TryUmount>> = LazyLock::new(|| Mutex::new(TryUmount::new()));
 static HISTORY: LazyLock<Mutex<HashSet<String>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
 
+const DONNOT_UMOUNT_LIST: &[&str] = &[
+    "/vendor/lib",
+    "/vendor/lib64",
+    "/system/lib",
+    "/system/lib64",
+];
+
 pub fn send_umountable<P>(target: P) -> Result<()>
 where
     P: AsRef<Path>,
@@ -21,7 +28,7 @@ where
     }
 
     let target = target.as_ref();
-    if target.starts_with("/vendor/lib") {
+    if DONNOT_UMOUNT_LIST.iter().any(|s| target.starts_with(s)) {
         log::warn!("Cannot umount paths starting with /vendor/lib!!");
         return Ok(());
     }
