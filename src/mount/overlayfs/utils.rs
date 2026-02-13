@@ -1,5 +1,6 @@
 // Copyright 2026 https://github.com/KernelSU-Modules-Repo/meta-overlayfs and https://github.com/bmax121/APatch
 
+use std::os::fd::AsFd;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use std::{fs, os::unix::fs::PermissionsExt, path::Path};
 
@@ -7,6 +8,13 @@ use std::{fs, os::unix::fs::PermissionsExt, path::Path};
 use anyhow::{Context, Result};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use loopdev::LoopControl;
+use rustix::{
+    fs::CWD,
+    mount::{
+        FsMountFlags, FsOpenFlags, MountAttrFlags, MoveMountFlags, fsconfig_create,
+        fsconfig_set_string, fsmount, fsopen, move_mount,
+    },
+};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use rustix::{
     mount::{MountFlags, UnmountFlags, mount, unmount},
@@ -110,5 +118,42 @@ where
 pub fn umount_dir(src: impl AsRef<Path>) -> Result<()> {
     unmount(src.as_ref(), UnmountFlags::empty())
         .with_context(|| format!("Failed to umount {}", src.as_ref().display()))?;
+    Ok(())
+}
+
+pub fn fs<S, P>(
+    upperdir: Option<String>,
+    workdir: Option<String>,
+    lowerdir_config: String,
+    source: S,
+    dest: P,
+) -> Result<()>
+where
+    S: ToString,
+    P: AsRef<Path>,
+{
+    let fs = fsopen("overlay", FsOpenFlags::FSOPEN_CLOEXEC).context("Failed to fsopen overlay")?;
+    let fs = fs.as_fd();
+    fsconfig_set_string(fs, "lowerdir", &lowerdir_config)
+        .context("Failed to fsconfig set string lowerdir with {lowerdir_config}")?;
+    if let (Some(upperdir), Some(workdir)) = (&upperdir, &workdir) {
+        fsconfig_set_string(fs, "upperdir", upperdir)
+            .context("Failed to fsconfig set string upperdir with {upperdir}")?;
+        fsconfig_set_string(fs, "workdir", workdir)
+            .context("Failed to fsconfig set string workdir with {workdir}")?;
+    }
+    fsconfig_set_string(fs, "source", source.to_string())
+        .context("Failed to fsconfig set string source with {source}")?;
+    fsconfig_create(fs).context("Failed to fsconfig create new fs")?;
+    let mount = fsmount(fs, FsMountFlags::FSMOUNT_CLOEXEC, MountAttrFlags::empty())
+        .context("Failed to mount")?;
+    move_mount(
+        mount.as_fd(),
+        "",
+        CWD,
+        dest.as_ref(),
+        MoveMountFlags::MOVE_MOUNT_F_EMPTY_PATH,
+    )?;
+
     Ok(())
 }

@@ -11,15 +11,15 @@ use anyhow::{Context, Result, bail};
 use procfs::process::Process;
 use rustix::{
     fs::CWD,
-    mount::{
-        FsMountFlags, FsOpenFlags, MountAttrFlags, MountFlags, MoveMountFlags, fsconfig_create,
-        fsconfig_set_string, fsmount, fsopen, mount, move_mount,
-    },
+    mount::{MountFlags, MoveMountFlags, mount, move_mount},
 };
 
 use crate::{
     defs,
-    mount::{overlayfs::utils::umount_dir, umount_mgr::send_umountable},
+    mount::{
+        overlayfs::utils::{fs, umount_dir},
+        umount_mgr::send_umountable,
+    },
     utils::ensure_dir_exists,
 };
 
@@ -48,27 +48,13 @@ fn mount_overlay_core(
         .filter(|wd| wd.exists())
         .map(|e| e.display().to_string());
 
-    let result = (|| {
-        let fs = fsopen("overlay", FsOpenFlags::FSOPEN_CLOEXEC)?;
-        let fs = fs.as_fd();
-        fsconfig_set_string(fs, "lowerdir", &lowerdir_config)?;
-        if let (Some(upperdir), Some(workdir)) = (&upperdir_s, &workdir_s) {
-            fsconfig_set_string(fs, "upperdir", upperdir)?;
-            fsconfig_set_string(fs, "workdir", workdir)?;
-        }
-        fsconfig_set_string(fs, "source", mount_source)?;
-        fsconfig_create(fs)?;
-        let mount = fsmount(fs, FsMountFlags::FSMOUNT_CLOEXEC, MountAttrFlags::empty())?;
-        move_mount(
-            mount.as_fd(),
-            "",
-            CWD,
-            dest,
-            MoveMountFlags::MOVE_MOUNT_F_EMPTY_PATH,
-        )
-    })();
-
-    if let Err(e) = result {
+    if let Err(e) = fs(
+        upperdir_s.clone(),
+        workdir_s.clone(),
+        lowerdir_config.clone(),
+        mount_source,
+        dest,
+    ) {
         log::warn!("fsopen mount failed: {:#}, fallback to mount", e);
         let safe_lower = lowerdir_config.replace(',', "\\,");
         let mut data = format!("lowerdir={safe_lower}");
