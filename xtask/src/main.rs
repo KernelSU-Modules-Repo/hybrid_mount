@@ -62,6 +62,8 @@ enum Commands {
         skip_webui: bool,
         #[arg(long, value_enum)]
         arch: Option<Arch>,
+        #[arg(long)]
+        ci: bool,
     },
     Lint,
 }
@@ -73,8 +75,20 @@ fn main() -> Result<()> {
             release,
             skip_webui,
             arch,
+            ci,
         } => {
-            build_full(release, skip_webui, arch)?;
+            let (cargo_release, webui_release, target_archs) = if ci {
+                (true, false, vec![Arch::Arm64])
+            } else {
+                let archs = if let Some(selected) = arch {
+                    vec![selected]
+                } else {
+                    vec![Arch::Arm64, Arch::Arm, Arch::X86_64]
+                };
+                (release, release, archs)
+            };
+
+            build_full(cargo_release, webui_release, skip_webui, target_archs)?;
         }
         Commands::Lint => {
             run_clippy()?;
@@ -109,7 +123,12 @@ fn run_clippy() -> Result<()> {
     Ok(())
 }
 
-fn build_full(release: bool, skip_webui: bool, target_arch: Option<Arch>) -> Result<()> {
+fn build_full(
+    cargo_release: bool,
+    webui_release: bool,
+    skip_webui: bool,
+    target_archs: Vec<Arch>,
+) -> Result<()> {
     let output_dir = Path::new("output");
     let stage_dir = output_dir.join("staging");
     if output_dir.exists() {
@@ -119,20 +138,14 @@ fn build_full(release: bool, skip_webui: bool, target_arch: Option<Arch>) -> Res
     let version = get_version()?;
     if !skip_webui {
         println!(":: Building WebUI...");
-        build_webui(&version, release)?;
+        build_webui(&version, webui_release)?;
     }
 
-    let archs_to_build = if let Some(selected) = target_arch {
-        vec![selected]
-    } else {
-        vec![Arch::Arm64, Arch::Arm, Arch::X86_64]
-    };
-
-    for arch in archs_to_build {
+    for arch in target_archs {
         println!(":: Compiling Core for {:?}...", arch);
-        compile_core(release, arch)?;
+        compile_core(cargo_release, arch)?;
         let bin_name = "hybrid-mount";
-        let profile = if release { "release" } else { "debug" };
+        let profile = if cargo_release { "release" } else { "debug" };
         let src_bin = Path::new("target")
             .join(arch.android_abi())
             .join(profile)
