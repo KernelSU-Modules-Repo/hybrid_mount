@@ -9,7 +9,6 @@ pub const MODULE_PROP_FILE: &str = "/data/adb/modules/hybrid_mount/module.prop";
 pub const MODULES_DIR: &str = "/data/adb/modules";
 pub const CONFIG_FILE: &str = "/data/adb/hybrid-mount/config.toml";
 pub const MKFS_EROFS_PATH: &str = "/data/adb/metamodule/tools/mkfs.erofs";
-pub const POACEAE_MOUNT_POINT: &str = "/data/adb/poaceaefs_mount";
 pub const ZYGISKSU_DENYLIST_FILE: &str = "/data/adb/zygisksu/denylist_enforce";
 
 pub const BUILTIN_PARTITIONS: &[&str] = &[
