@@ -1,5 +1,6 @@
 [workspace]
 members = ["xtask"]
+exclude = ["tools/notify"]
 resolver = "2"
 
 [package]
