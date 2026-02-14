@@ -2,8 +2,8 @@
 /output
 **/.DS_Store
 /.vscode
-webui/src/lib/constants_gen.ts
+/webui/src/lib/constants_gen.ts
 **.bak
-webui/pnpm-workspace.yaml
-Cargo.lock
+/webui/pnpm-workspace.yaml
+/Cargo.lock
 
