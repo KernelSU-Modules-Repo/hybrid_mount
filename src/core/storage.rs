@@ -238,9 +238,9 @@ fn setup_ext4_image(target: &Path, img_path: &Path, moduledir: &Path) -> Result<
     utils::lsetfilecon(img_path, "u:object_r:ksu_file:s0").ok();
 
     ensure_dir_exists(target)?;
-    if overlay_utils::AutoMountExt4::try_new(img_path, target, false).is_err() {
+    if overlay_utils::mount_ext4(img_path, target).is_err() {
         if crate::sys::mount::repair_image(img_path).is_ok() {
-            overlay_utils::AutoMountExt4::try_new(img_path, target, false)
+            overlay_utils::mount_ext4(img_path, target)
                 .context("Failed to mount modules.img after repair")
                 .map(|_| ())?;
         } else {
