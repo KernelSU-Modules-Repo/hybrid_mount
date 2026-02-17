@@ -85,19 +85,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let mut config = load_final_config(&cli)?;
-
-    if utils::check_zygisksu_enforce_status() {
-        if config.allow_umount_coexistence {
-            log::debug!(
-                ">> ZygiskSU Enforce!=0 detected, but Umount Coexistence enabled. Respecting \
-                        user config."
-            );
-        } else {
-            log::debug!(">> ZygiskSU Enforce!=0 detected. Forcing DISABLE_UMOUNT to TRUE.");
-            config.disable_umount = true;
-        }
-    }
+    let config = load_final_config(&cli)?;
 
     utils::init_logging().context("Failed to initialize logging")?;
 

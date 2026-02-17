@@ -9,7 +9,6 @@ use std::{
 use anyhow::{Result, bail};
 use regex_lite::Regex;
 
-use crate::defs;
 
 pub static KSU: AtomicBool = AtomicBool::new(false);
 
@@ -45,10 +44,4 @@ pub fn extract_module_id(path: &Path) -> Option<String> {
     path.parent()
         .and_then(|p| p.file_name())
         .map(|s| s.to_string_lossy().to_string())
-}
-
-pub fn check_zygisksu_enforce_status() -> bool {
-    std::fs::read_to_string(defs::ZYGISKSU_DENYLIST_FILE)
-        .map(|s| s.trim() != "0")
-        .unwrap_or(false)
 }
