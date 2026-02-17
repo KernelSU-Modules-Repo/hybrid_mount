@@ -26,85 +26,92 @@ where
     let mut final_magic_ids: HashSet<String> = plan.magic_module_ids.iter().cloned().collect();
     let mut final_overlay_ids: HashSet<String> = HashSet::new();
 
-    log::info!(">> Phase 1: OverlayFS Execution...");
+    if overlayfs::utils::is_overlay_supported()? {
+        log::info!(">> Phase 1: OverlayFS Execution...");
 
-    for op in &plan.overlay_ops {
-        let involved_modules: Vec<String> = op
-            .lowerdirs
-            .iter()
-            .filter_map(|p| utils::extract_module_id(p))
-            .collect();
+        for op in &plan.overlay_ops {
+            let involved_modules: Vec<String> = op
+                .lowerdirs
+                .iter()
+                .filter_map(|p| utils::extract_module_id(p))
+                .collect();
 
-        let lowerdir_strings: Vec<String> = op
-            .lowerdirs
-            .iter()
-            .map(|p| p.display().to_string())
-            .collect();
+            let lowerdir_strings: Vec<String> = op
+                .lowerdirs
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect();
 
-        let rw_root = Path::new(defs::SYSTEM_RW_DIR);
-        let part_rw = rw_root.join(&op.partition_name);
-        let upper = part_rw.join("upperdir");
-        let work = part_rw.join("workdir");
+            let rw_root = Path::new(defs::SYSTEM_RW_DIR);
+            let part_rw = rw_root.join(&op.partition_name);
+            let upper = part_rw.join("upperdir");
+            let work = part_rw.join("workdir");
 
-        let (upper_opt, work_opt) = if upper.exists() && work.exists() {
-            (Some(upper), Some(work))
-        } else {
-            (None, None)
-        };
+            let (upper_opt, work_opt) = if upper.exists() && work.exists() {
+                (Some(upper), Some(work))
+            } else {
+                (None, None)
+            };
 
-        log::info!(
-            "Mounting {} [OVERLAY] (Layers: {})",
-            op.target,
-            lowerdir_strings.len()
-        );
+            log::info!(
+                "Mounting {} [OVERLAY] (Layers: {})",
+                op.target,
+                lowerdir_strings.len()
+            );
 
-        let mut mount_source = config.mountsource.clone();
+            let mut mount_source = config.mountsource.clone();
 
-        if defs::IGNORE_UNOUNT_PARTITIONS
-            .iter()
-            .any(|s| s.trim() == op.target.trim())
-        {
-            log::warn!("Modifying the drive partition, mount source has been changed to overlay.");
-            mount_source = "overlay".to_string();
-        }
+            if defs::IGNORE_UNOUNT_PARTITIONS
+                .iter()
+                .any(|s| s.trim() == op.target.trim())
+            {
+                log::warn!(
+                    "Modifying the drive partition, mount source has been changed to overlay."
+                );
+                mount_source = "overlay".to_string();
+            }
 
-        match overlayfs::overlayfs::mount_overlay(
-            &op.target,
-            &lowerdir_strings,
-            work_opt,
-            upper_opt,
-            &mount_source,
-        ) {
-            Ok(_) => {
-                for id in involved_modules {
-                    final_overlay_ids.insert(id);
+            match overlayfs::overlayfs::mount_overlay(
+                &op.target,
+                &lowerdir_strings,
+                work_opt,
+                upper_opt,
+                &mount_source,
+            ) {
+                Ok(_) => {
+                    for id in involved_modules {
+                        final_overlay_ids.insert(id);
+                    }
+
+                    #[cfg(any(target_os = "linux", target_os = "android"))]
+                    if !config.disable_umount
+                        && let Err(e) = umount_mgr::send_umountable(&op.target)
+                    {
+                        log::warn!(
+                            "Failed to schedule unmount for {}(kernel): {}",
+                            op.target,
+                            e
+                        );
+                    }
                 }
-
-                #[cfg(any(target_os = "linux", target_os = "android"))]
-                if !config.disable_umount
-                    && let Err(e) = umount_mgr::send_umountable(&op.target)
-                {
+                Err(e) => {
                     log::warn!(
-                        "Failed to schedule unmount for {}(kernel): {}",
+                        "OverlayFS failed for {}: {}. Fallback to Magic Mount.",
                         op.target,
                         e
                     );
-                }
-            }
-            Err(e) => {
-                log::warn!(
-                    "OverlayFS failed for {}: {}. Fallback to Magic Mount.",
-                    op.target,
-                    e
-                );
-                for id in involved_modules {
-                    final_magic_ids.insert(id);
+                    for id in involved_modules {
+                        final_magic_ids.insert(id);
+                    }
                 }
             }
         }
-    }
 
-    final_overlay_ids.retain(|id| !final_magic_ids.contains(id));
+        final_overlay_ids.retain(|id| !final_magic_ids.contains(id));
+    } else {
+        log::warn!("Your device does not support overlay; it has fallen back to Magic mount.");
+        final_magic_ids.extend(final_overlay_ids.clone());
+    }
 
     let mut magic_queue: Vec<String> = final_magic_ids.iter().cloned().collect();
     magic_queue.sort();

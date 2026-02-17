@@ -1,11 +1,12 @@
 // Copyright 2026 https://github.com/KernelSU-Modules-Repo/meta-overlayfs and https://github.com/bmax121/APatch
 
-use std::os::fd::AsFd;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use std::{fs, os::unix::fs::PermissionsExt, path::Path};
+use std::{io::Read, os::fd::AsFd};
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use anyhow::{Context, Result};
+use flate2::read::GzDecoder;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use loopdev::LoopControl;
 #[cfg(any(target_os = "linux", target_os = "android"))]
@@ -71,6 +72,30 @@ where
     ))?;
 
     Ok(())
+}
+
+pub fn is_overlay_supported() -> Result<bool> {
+    let file = fs::File::open("/proc/config.gz")?;
+
+    let mut config = String::new();
+    let mut decoder = GzDecoder::new(file);
+    decoder.read_to_string(&mut config)?;
+
+    for i in config.lines() {
+        if i.starts_with("#") {
+            continue;
+        }
+
+        let Some((k, v)) = i.split_once('=') else {
+            continue;
+        };
+
+        if k.trim() == "CONFIG_OVERLAY_FS" && v.trim() == "y" {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
 }
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
