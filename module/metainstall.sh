@@ -15,7 +15,7 @@ hybrid_handle_partition() {
     return
   fi
 
-  if [ -d "$MODPATH/system/$partition" ] && [ ! -L "$MODPATH/system/$partition" ]; then
+  if [ -d "/$partition" ] && [ ! -L "/system/$partition" ]; then
     ln -sf "./system/$partition" "$MODPATH/$partition"
     ui_print "- handled /$partition"
   fi
@@ -45,4 +45,3 @@ done
 cleanup_empty_system_dir
 
 ui_print "- Installation complete"
-
