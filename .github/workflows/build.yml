@@ -81,13 +81,17 @@ jobs:
           echo "BUILD_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Notify Telegram (CI)
-        if: success() && github.event_name != 'pull_request' && secrets.TELEGRAM_BOT_TOKEN != ''
+        if: success() && github.event_name != 'pull_request'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          chmod +x notify
-          ./notify "37" "日常耕作 🌱 (Daily Tilling) - ${{ env.BUILD_VERSION }}"
+          if [[ -n "$TELEGRAM_BOT_TOKEN" && -n "$TELEGRAM_CHAT_ID" ]]; then
+            chmod +x notify
+            ./notify "37" "日常耕作 🌱 (Daily Tilling) - ${{ env.BUILD_VERSION }}"
+          else
+            echo "Telegram secrets not set, skipping notification."
+          fi
 
       - name: Prepare Artifact
         run: |

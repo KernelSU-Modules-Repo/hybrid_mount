@@ -57,13 +57,16 @@ jobs:
           cargo xtask build --release --tag ${{ github.ref_name }}
 
       - name: Notify Telegram (Release)
-        if: secrets.TELEGRAM_BOT_TOKEN != ''
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          chmod +x notify
-          ./notify "6" "丰收 (Harvest) - ${{ github.ref_name }}"
+          if [[ -n "$TELEGRAM_BOT_TOKEN" && -n "$TELEGRAM_CHAT_ID" ]]; then
+            chmod +x notify
+            ./notify "6" "丰收 (Harvest) - ${{ github.ref_name }}"
+          else
+            echo "Telegram secrets not set, skipping notification."
+          fi
 
       - name: Generate Changelog
         id: meta
