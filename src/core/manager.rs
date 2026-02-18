@@ -7,7 +7,7 @@ use crate::{
     core::{
         inventory,
         inventory::model as modules,
-        ops::{executor, planner, sync},
+        ops::{executor, executor::NativeOverlayDriver, planner, sync},
         state, storage,
         storage::StorageHandle,
     },
@@ -74,8 +74,6 @@ impl MountController<Init> {
             self.config.disable_umount,
         )?;
 
-        log::info!(">> Storage Backend: [{}]", handle.mode.to_uppercase());
-
         Ok(MountController {
             config: self.config,
             state: StorageReady { handle },
@@ -88,14 +86,9 @@ impl MountController<StorageReady> {
     pub fn scan_and_sync(mut self) -> Result<MountController<ModulesReady>> {
         let modules = inventory::scan(&self.config.moduledir, &self.config)?;
 
-        log::info!(
-            ">> Inventory Scan: Found {} enabled modules.",
-            modules.len()
-        );
+        sync::perform_sync(&modules, self.state.handle.mount_point())?;
 
-        sync::perform_sync(&modules, &self.state.handle.mount_point)?;
-
-        if self.state.handle.mode == "erofs_staging" {
+        if self.state.handle.mode() == "erofs_staging" {
             let needs_magic = modules.iter().any(|m| {
                 m.rules.default_mode == inventory::MountMode::Magic
                     || m.rules
@@ -105,7 +98,7 @@ impl MountController<StorageReady> {
             });
 
             if needs_magic {
-                let magic_ws = self.state.handle.mount_point.join("magic_workspace");
+                let magic_ws = self.state.handle.mount_point().join("magic_workspace");
                 if !magic_ws.exists() {
                     let _ = std::fs::create_dir(magic_ws);
                 }
@@ -130,7 +123,7 @@ impl MountController<ModulesReady> {
         let plan = planner::generate(
             &self.config,
             &self.state.modules,
-            &self.state.handle.mount_point,
+            self.state.handle.mount_point(),
         )?;
 
         Ok(MountController {
@@ -146,9 +139,13 @@ impl MountController<ModulesReady> {
 
 impl MountController<Planned> {
     pub fn execute(self) -> Result<MountController<Executed>> {
-        log::info!(">> Link Start! Executing mount plan...");
-
-        let result = executor::execute(&self.state.plan, &self.config, self.tempdir.clone())?;
+        let driver = NativeOverlayDriver;
+        let result = executor::execute(
+            &self.state.plan,
+            &self.config,
+            self.tempdir.clone(),
+            &driver,
+        )?;
 
         Ok(MountController {
             config: self.config,
@@ -165,7 +162,7 @@ impl MountController<Planned> {
 impl MountController<Executed> {
     pub fn finalize(self) -> Result<()> {
         modules::update_description(
-            &self.state.handle.mode,
+            self.state.handle.mode(),
             self.state.result.overlay_module_ids.len(),
             self.state.result.magic_module_ids.len(),
         );
@@ -182,18 +179,14 @@ impl MountController<Executed> {
         active_mounts.dedup();
 
         let state = state::RuntimeState::new(
-            self.state.handle.mode,
-            self.state.handle.mount_point,
+            self.state.handle.mode().to_string(),
+            self.state.handle.mount_point().to_path_buf(),
             self.state.result.overlay_module_ids,
             self.state.result.magic_module_ids,
             active_mounts,
         );
 
-        if let Err(e) = state.save() {
-            log::error!("Failed to save runtime state: {:#}", e);
-        }
-
-        log::info!(">> System operational. Mount sequence complete.");
+        let _ = state.save();
 
         Ok(())
     }

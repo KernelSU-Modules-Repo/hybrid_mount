@@ -15,6 +15,7 @@ use rustix::mount::{
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::mount::umount_mgr::send_umountable;
 use crate::{
+    core::backend::StorageBackend,
     defs,
     mount::overlayfs::utils as overlay_utils,
     sys::{
@@ -28,56 +29,93 @@ use crate::{
 const DEFAULT_SELINUX_CONTEXT: &str = "u:object_r:system_file:s0";
 
 pub struct StorageHandle {
-    pub mount_point: PathBuf,
-    pub mode: String,
-    pub backing_image: Option<PathBuf>,
-    pub final_target: Option<PathBuf>,
+    pub backend: Box<dyn StorageBackend>,
 }
 
 impl StorageHandle {
     pub fn commit(&mut self, disable_umount: bool) -> Result<()> {
+        self.backend.commit(disable_umount)
+    }
+
+    pub fn mount_point(&self) -> &Path {
+        self.backend.mount_point()
+    }
+
+    pub fn mode(&self) -> &str {
+        self.backend.mode()
+    }
+}
+
+pub struct ErofsBackend {
+    pub mount_point: PathBuf,
+    pub mode: String,
+    pub backing_image: PathBuf,
+    pub final_target: PathBuf,
+}
+
+impl StorageBackend for ErofsBackend {
+    fn commit(&mut self, disable_umount: bool) -> Result<()> {
         if self.mode == "erofs_staging" {
-            let image_path = self
-                .backing_image
-                .as_ref()
-                .context("EROFS backing image path missing")?;
-
-            let final_target = self
-                .final_target
-                .as_ref()
-                .context("EROFS final target missing")?;
-
-            create_erofs_image(&self.mount_point, image_path)
-                .context("Failed to pack EROFS image")?;
-
-            if let Err(e) = umount(&self.mount_point, UnmountFlags::DETACH) {
-                log::warn!("Failed to unmount staging tmpfs: {}", e);
-            }
-
-            if let Err(e) = fs::remove_dir(&self.mount_point) {
-                log::debug!("Failed to remove staging dir: {}", e);
-            }
-
-            ensure_dir_exists(final_target)?;
-
-            mount_erofs_image(image_path, final_target)
-                .context("Failed to mount finalized EROFS image")?;
-
-            if let Err(e) = mount_change(final_target, MountPropagationFlags::PRIVATE) {
-                log::warn!("Failed to make EROFS storage private: {}", e);
-            }
-
+            create_erofs_image(&self.mount_point, &self.backing_image)?;
+            if let Err(_) = umount(&self.mount_point, UnmountFlags::DETACH) {}
+            let _ = fs::remove_dir(&self.mount_point);
+            ensure_dir_exists(&self.final_target)?;
+            mount_erofs_image(&self.backing_image, &self.final_target)?;
+            if let Err(_) = mount_change(&self.final_target, MountPropagationFlags::PRIVATE) {}
             #[cfg(any(target_os = "linux", target_os = "android"))]
             if !disable_umount {
-                let _ = send_umountable(final_target);
+                let _ = send_umountable(&self.final_target);
             }
-
-            self.mount_point = final_target.clone();
+            self.mount_point = self.final_target.clone();
             self.mode = "erofs".to_string();
-            self.final_target = None;
         }
-
         Ok(())
+    }
+
+    fn mount_point(&self) -> &Path {
+        &self.mount_point
+    }
+
+    fn mode(&self) -> &str {
+        &self.mode
+    }
+}
+
+pub struct Ext4Backend {
+    pub mount_point: PathBuf,
+    pub mode: String,
+}
+
+impl StorageBackend for Ext4Backend {
+    fn commit(&mut self, _disable_umount: bool) -> Result<()> {
+        Ok(())
+    }
+
+    fn mount_point(&self) -> &Path {
+        &self.mount_point
+    }
+
+    fn mode(&self) -> &str {
+        &self.mode
+    }
+}
+
+pub struct TmpfsBackend {
+    pub mount_point: PathBuf,
+    pub mode: String,
+}
+
+impl StorageBackend for TmpfsBackend {
+    fn commit(&mut self, _disable_umount: bool) -> Result<()> {
+        Ok(())
+    }
+
+    fn mount_point(&self) -> &Path {
+        &self.mount_point
+    }
+
+    fn mode(&self) -> &str {
+        &self.mode
     }
 }
 
@@ -107,9 +145,7 @@ where
         .args(["-yf", path_str])
         .status()
         .with_context(|| format!("Failed to exec e2fsck {}", path.display()))?;
-    let code = result.code();
-
-    log::info!("e2fsck exit code: {}", code.unwrap_or(-1));
+    let _ = result.code();
     Ok(())
 }
 
@@ -122,16 +158,12 @@ pub fn setup(
     mount_source: &str,
     disable_umount: bool,
 ) -> Result<StorageHandle> {
-    if img_path.exists()
-        && let Err(e) = fs::remove_file(img_path)
-    {
-        log::warn!("Failed to remove old ext4 image: {}", e);
+    if img_path.exists() {
+        let _ = fs::remove_file(img_path);
     }
     let erofs_path = img_path.with_extension("erofs");
-    if erofs_path.exists()
-        && let Err(e) = fs::remove_file(&erofs_path)
-    {
-        log::warn!("Failed to remove old erofs image: {}", e);
+    if erofs_path.exists() {
+        let _ = fs::remove_file(&erofs_path);
     }
 
     if is_mounted(mnt_base) {
@@ -143,15 +175,12 @@ pub fn setup(
         if !disable_umount {
             let _ = send_umountable(path);
         }
-
         #[cfg(not(any(target_os = "linux", target_os = "android")))]
         let _ = path;
     };
 
     let make_private = |path: &Path| {
-        if let Err(e) = mount_change(path, MountPropagationFlags::PRIVATE) {
-            log::warn!("Failed to make storage private: {}", e);
-        }
+        let _ = mount_change(path, MountPropagationFlags::PRIVATE);
     };
 
     if use_erofs && is_erofs_supported() {
@@ -167,62 +196,57 @@ pub fn setup(
         ensure_dir_exists(&staging_dir)?;
 
         crate::sys::mount::mount_tmpfs(&staging_dir, mount_source)?;
-
         make_private(&staging_dir);
         try_hide(&staging_dir);
 
         return Ok(StorageHandle {
-            mount_point: staging_dir,
-            mode: "erofs_staging".to_string(),
-            backing_image: Some(erofs_path),
-            final_target: Some(mnt_base.to_path_buf()),
+            backend: Box::new(ErofsBackend {
+                mount_point: staging_dir,
+                mode: "erofs_staging".to_string(),
+                backing_image: erofs_path,
+                final_target: mnt_base.to_path_buf(),
+            }),
         });
     }
 
     if !force_ext4 && try_setup_tmpfs(mnt_base, mount_source)? {
         make_private(mnt_base);
-
         try_hide(mnt_base);
 
         return Ok(StorageHandle {
-            mount_point: mnt_base.to_path_buf(),
-            mode: "tmpfs".to_string(),
-            backing_image: None,
-            final_target: None,
+            backend: Box::new(TmpfsBackend {
+                mount_point: mnt_base.to_path_buf(),
+                mode: "tmpfs".to_string(),
+            }),
         });
     }
 
     let handle = setup_ext4_image(mnt_base, img_path, moduledir)?;
-
     make_private(mnt_base);
-
     try_hide(mnt_base);
 
-    Ok(handle)
+    Ok(StorageHandle {
+        backend: Box::new(handle),
+    })
 }
 
 fn try_setup_tmpfs(target: &Path, mount_source: &str) -> Result<bool> {
     if crate::sys::mount::mount_tmpfs(target, mount_source).is_ok() {
         if crate::sys::fs::is_overlay_xattr_supported().unwrap_or(false) {
-            log::info!("Tmpfs mounted and supports xattrs (CONFIG_TMPFS_XATTR=y).");
             return Ok(true);
         } else {
             let _ = umount(target, UnmountFlags::DETACH);
         }
     }
-
     Ok(false)
 }
 
-fn setup_ext4_image(target: &Path, img_path: &Path, moduledir: &Path) -> Result<StorageHandle> {
+fn setup_ext4_image(target: &Path, img_path: &Path, moduledir: &Path) -> Result<Ext4Backend> {
     let total_size = calculate_total_size(moduledir)?;
     let min_size = 64 * 1024 * 1024;
     let grow_size = std::cmp::max((total_size as f64 * 1.2) as u64, min_size);
 
-    fs::File::create(img_path)
-        .context("Failed to create ext4 image file")?
-        .set_len(grow_size)
-        .context("Failed to extend ext4 image")?;
+    fs::File::create(img_path)?.set_len(grow_size)?;
 
     let result = Command::new("mkfs.ext4")
         .arg("-b")
@@ -231,22 +255,15 @@ fn setup_ext4_image(target: &Path, img_path: &Path, moduledir: &Path) -> Result<
         .stdout(std::process::Stdio::piped())
         .output()?;
 
-    ensure!(
-        result.status.success(),
-        "Failed to format ext4 image: {}",
-        String::from_utf8(result.stderr)?
-    );
+    ensure!(result.status.success(), "Failed to format ext4 image");
 
     check_image(img_path)?;
-
-    lsetfilecon(img_path, "u:object_r:ksu_file:s0").ok();
-
+    let _ = lsetfilecon(img_path, "u:object_r:ksu_file:s0");
     ensure_dir_exists(target)?;
+
     if overlay_utils::mount_ext4(img_path, target).is_err() {
         if crate::sys::mount::repair_image(img_path).is_ok() {
-            overlay_utils::mount_ext4(img_path, target)
-                .context("Failed to mount modules.img after repair")
-                .map(|_| ())?;
+            overlay_utils::mount_ext4(img_path, target)?;
         } else {
             bail!("Failed to repair modules.img");
         }
@@ -264,11 +281,9 @@ fn setup_ext4_image(target: &Path, img_path: &Path, moduledir: &Path) -> Result<
         }
     }
 
-    Ok(StorageHandle {
+    Ok(Ext4Backend {
         mount_point: target.to_path_buf(),
         mode: "ext4".to_string(),
-        backing_image: Some(img_path.to_path_buf()),
-        final_target: None,
     })
 }
 
@@ -295,33 +310,30 @@ fn create_erofs_image(src_dir: &Path, image_path: &Path) -> Result<()> {
         .arg(src_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .output()
-        .context("Failed to execute mkfs.erofs")?;
+        .output()?;
 
     if !output.status.success() {
         bail!("Failed to create EROFS image");
     }
 
     let _ = fs::set_permissions(image_path, fs::Permissions::from_mode(0o644));
-    lsetfilecon(image_path, "u:object_r:ksu_file:s0")?;
+    let _ = lsetfilecon(image_path, "u:object_r:ksu_file:s0");
     Ok(())
 }
 
 fn mount_erofs_image(image_path: &Path, target: &Path) -> Result<()> {
     ensure_dir_exists(target)?;
-    lsetfilecon(image_path, "u:object_r:ksu_file:s0").ok();
+    let _ = lsetfilecon(image_path, "u:object_r:ksu_file:s0");
 
-    let lc = LoopControl::open().context("Failed to open loop control")?;
-    let ld = lc.next_free().context("Failed to find free loop device")?;
+    let lc = LoopControl::open()?;
+    let ld = lc.next_free()?;
 
     ld.with()
         .read_only(true)
         .autoclear(true)
-        .attach(image_path)
-        .context("Failed to attach source to loop device")?;
+        .attach(image_path)?;
 
     let device_path = ld.path().context("Could not get loop device path")?;
-    log::debug!("loop device path: {}", device_path.display());
 
     mount(
         &device_path,
@@ -329,15 +341,10 @@ fn mount_erofs_image(image_path: &Path, target: &Path) -> Result<()> {
         "erofs",
         MountFlags::NOATIME | MountFlags::NODEV | MountFlags::RDONLY,
         Some(c""),
-    )
-    .context(format!(
-        "Failed to mount {} to {}",
-        device_path.display(),
-        target.display()
-    ))?;
+    )?;
 
     if fs::read_dir(target)?.next().is_none() {
-        bail!("EROFS mount success but directory is empty (Loop device failure?)");
+        bail!("EROFS mount success but directory is empty");
     }
 
     Ok(())
