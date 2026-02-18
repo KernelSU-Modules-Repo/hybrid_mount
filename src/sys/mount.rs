@@ -14,8 +14,11 @@ pub fn detect_mount_source() -> String {
 }
 
 pub fn is_mounted<P: AsRef<Path>>(path: P) -> bool {
-    let path_str = path.as_ref().to_string_lossy();
-    let search = path_str.trim_end_matches('/');
+    let Some(path) = path.as_ref().to_str() else {
+        return false;
+    };
+
+    let search = path.trim_end_matches('/');
 
     if let Ok(process) = Process::myself()
         && let Ok(mountinfo) = process.mountinfo()
@@ -25,14 +28,6 @@ pub fn is_mounted<P: AsRef<Path>>(path: P) -> bool {
             .any(|m| m.mount_point.to_string_lossy() == search);
     }
 
-    if let Ok(content) = fs::read_to_string("/proc/mounts") {
-        for line in content.lines() {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() > 1 && parts[1] == search {
-                return true;
-            }
-        }
-    }
     false
 }
 
