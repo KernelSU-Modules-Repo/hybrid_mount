@@ -224,6 +224,7 @@ author=Hybrid Mount Developers
 description={}
 updateJson={}
 metamodule=1
+webuiIcon=launcher.png
 "#,
         meta.name, info.full_version, info.version_code, config.package.description, meta.update
     );

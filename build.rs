@@ -104,5 +104,6 @@ fn gen_module_prop(data: &CargoConfig) -> Result<()> {
     writeln!(file, "updateJson={}", package.metadata.hybrid_mount.update)?;
     writeln!(file, "description={}", package.description)?;
     writeln!(file, "metamodule=1")?;
+    writeln!(file, "webuiIcon=launcher.png")?;
     Ok(())
 }
