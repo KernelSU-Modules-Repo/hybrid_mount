@@ -1,6 +1,3 @@
-// Copyright 2025 Meta-Hybrid Mount Authors
-// SPDX-License-Identifier: GPL-3.0-or-later
-
 use std::{
     env, fs,
     path::PathBuf,
@@ -30,17 +27,19 @@ async fn main() -> Result<()> {
     let _run_id = env::var("GITHUB_RUN_ID").unwrap_or_default();
     let server_url = env::var("GITHUB_SERVER_URL").unwrap_or("https://github.com".to_string());
 
+    let branch_name = env::var("GITHUB_REF_NAME").unwrap_or_else(|_| get_git_branch());
+
     let output_dir = PathBuf::from("output");
     let mut zip_file: Option<PathBuf> = None;
 
     if let Ok(entries) = fs::read_dir(&output_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if let Some(ext) = path.extension()
-                && ext == "zip"
-            {
-                zip_file = Some(path);
-                break;
+            if let Some(ext) = path.extension() {
+                if ext == "zip" {
+                    zip_file = Some(path);
+                    break;
+                }
             }
         }
     }
@@ -63,11 +62,12 @@ async fn main() -> Result<()> {
 
     let caption = format!(
         "🌾 <b>Hybrid-Mount: {}</b>\n\n\
+        🌿 <b>分支 (Branch):</b> {}\n\n\
         ⚖️ <b>重量 (Weight):</b> {:.2} MB\n\n\
         📝 <b>新性状 (Commit):</b>\n\
         <pre>{}</pre>\n\n\
         🚜 <a href='{}/{}/commit/{}'>查看日志 (View Log)</a>",
-        event_label, file_size, safe_commit_msg, server_url, repo, commit_hash
+        event_label, branch_name, file_size, safe_commit_msg, server_url, repo, commit_hash
     );
 
     println!("Dispatching yield to Granary (Telegram)...");
@@ -110,6 +110,17 @@ fn get_git_commit() -> (String, String) {
     };
 
     (msg, hash)
+}
+
+fn get_git_branch() -> String {
+    let output = Command::new("git")
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .output();
+
+    match output {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).trim().to_string(),
+        _ => "Unknown".to_string(),
+    }
 }
 
 fn escape_html(input: &str) -> String {
