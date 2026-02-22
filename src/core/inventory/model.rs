@@ -3,7 +3,8 @@ use std::{
     fs::{self},
     io::{BufRead, BufReader},
     path::Path,
-    sync::OnceLock,
+    process::Command,
+    sync::{OnceLock, atomic::Ordering},
 };
 
 use anyhow::Result;
@@ -16,6 +17,7 @@ use crate::{
     core::state::RuntimeState,
     defs,
     sys::fs::atomic_write,
+    utils::KSU,
 };
 
 static MODULE_PROP_REGEX: OnceLock<Regex> = OnceLock::new();
@@ -132,9 +134,24 @@ pub fn update_description(storage_mode: &str, overlay_count: usize, magic_count:
     };
 
     let desc_text = format!(
-        "description=😋 运行中喵～ ({}) {} | Overlay: {} | Magic: {}",
+        "😋 运行中喵～ ({}) {} | Overlay: {} | Magic: {}",
         mode_str, status_emoji, overlay_count, magic_count
     );
+    if KSU.load(Ordering::Relaxed) {
+        let result = Command::new("ksud")
+            .arg("module")
+            .arg("config")
+            .arg("set")
+            .arg("override.description")
+            .arg(&desc_text)
+            .status();
+
+        if let Ok(status) = result
+            && status.success()
+        {
+            return;
+        }
+    }
 
     let lines: Vec<String> = match fs::File::open(prop_path) {
         Ok(file) => BufReader::new(file)
@@ -142,7 +159,7 @@ pub fn update_description(storage_mode: &str, overlay_count: usize, magic_count:
             .map_while(Result::ok)
             .map(|line| {
                 if line.starts_with("description=") {
-                    desc_text.clone()
+                    format!("description={}", desc_text)
                 } else {
                     line
                 }

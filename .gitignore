@@ -6,3 +6,5 @@
 **.bak
 /webui/pnpm-workspace.yaml
 /module/module.prop
+build.sh
+
