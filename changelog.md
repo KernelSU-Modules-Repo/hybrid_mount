@@ -1,4 +1,24 @@
-## v3.1.0
+## v3.1.1
+
+Changes since v3.1.0:
+* daemon: using ksu's override.description api for description overriding
+* chore(deps): bump ajv
+* chore: remove unused fs import from mount.rs
+* chore(tools): update notify binary [skip ci]
+* feat: add branch name to Telegram notification and improve zip file detection
+* feat: add webuiIcon parameter to module.prop generation
+* feat: update launcher icon
+* feat: add webui shortcut button
+* chore(deps): update webui deps
+* feat: removed useless read self mounts
+* fix: fix typo
+* chore: make cargo clippy happy
+* docs: moved README to docs/
+* refactor: abstract mount backend and storage implementations using traits
+* fix: update refactored `fs` utility imports and function calls
+* chore(deps): bump the crates group with 3 updates
+* refactor: move fs module from utils to sys
+* chore(release): sync version v3.1.0 [skip ci]## v3.1.0
 
 Changes since v3.0.2:
 * chore: add module.prop to gitignore
