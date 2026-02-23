@@ -1,4 +1,9 @@
-## v3.1.1
+## v3.1.2
+
+Changes since v3.1.1:
+* feat: add remote release step for KernelSU-Repo in workflow
+* fix: correct typo in module summary
+* chore(release): sync version v3.1.1 [skip ci]## v3.1.1
 
 Changes since v3.1.0:
 * daemon: using ksu's override.description api for description overriding
