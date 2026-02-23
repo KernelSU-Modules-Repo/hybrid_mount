@@ -111,6 +111,18 @@ jobs:
           prerelease: false
           files: ${{ env.ZIP_PATH }}
           body_path: /tmp/changelog.md
+          
+      - name: Create Remote Release (KernelSU-Repo)
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
+          repository: KernelSU-Modules-Repo/hybrid_mount
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: ${{ env.ZIP_PATH }}
+          body_path: /tmp/changelog.md
 
       - name: Sync Version to Master
         if: startsWith(github.ref, 'refs/tags/')
