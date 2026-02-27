@@ -1,9 +1,11 @@
-/**
- * Copyright 2026 Hybrid Mount Authors
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
-import { createSignal, createMemo, onMount, Show, For } from "solid-js";
+import {
+  createSignal,
+  createMemo,
+  onMount,
+  Show,
+  For,
+  createDeferred,
+} from "solid-js";
 import { store } from "../lib/store";
 import { ICONS } from "../lib/constants";
 import Skeleton from "../components/Skeleton";
@@ -17,8 +19,9 @@ import "@material/web/icon/icon.js";
 
 export default function ModulesTab() {
   const [searchQuery, setSearchQuery] = createSignal("");
+  const deferredSearchQuery = createDeferred(searchQuery);
   const [filterType, setFilterType] = createSignal("all");
-  const [showUnmounted, setShowUnmounted] = createSignal(false); // 默认不显示未挂载
+  const [showUnmounted, setShowUnmounted] = createSignal(false);
   const [expandedId, setExpandedId] = createSignal<string | null>(null);
   const [initialRulesSnapshot, setInitialRulesSnapshot] = createSignal<
     Record<string, string>
@@ -70,7 +73,6 @@ export default function ModulesTab() {
         store.L.modules?.saveSuccess || "Saved successfully",
         "success",
       );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       store.showToast(e.message || "Failed to save", "error");
     } finally {
@@ -80,7 +82,7 @@ export default function ModulesTab() {
 
   const filteredModules = createMemo(() =>
     store.modules.filter((m) => {
-      const q = searchQuery().toLowerCase();
+      const q = deferredSearchQuery().toLowerCase();
       if (!m.is_mounted && !showUnmounted()) {
         return false;
       }

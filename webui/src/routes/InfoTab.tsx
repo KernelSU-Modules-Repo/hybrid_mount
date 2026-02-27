@@ -1,8 +1,3 @@
-/**
- * Copyright 2026 Hybrid Mount Developers
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 import { createSignal, onMount, Show, For } from "solid-js";
 import { store } from "../lib/store";
 import { API } from "../lib/api";
@@ -313,7 +308,7 @@ export default function InfoTab() {
                     >
                       <img
                         slot="start"
-                        src={user.avatar_url}
+                        src={`${user.avatar_url}${user.avatar_url.includes("?") ? "&" : "?"}s=80`}
                         alt={user.login}
                         class="c-avatar"
                         loading="lazy"

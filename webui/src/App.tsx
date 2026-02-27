@@ -1,8 +1,3 @@
-/**
- * Copyright 2026 Hybrid Mount Developers
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 import { createSignal, createMemo, onMount, Show } from "solid-js";
 import { store } from "./lib/store";
 import TopBar from "./components/TopBar.tsx";
@@ -24,6 +19,7 @@ export default function App() {
 
   let touchStartX = 0;
   let touchStartY = 0;
+  let ticking = false;
 
   const visibleTabs = createMemo(() => {
     return ["status", "config", "modules", "info"];
@@ -56,16 +52,22 @@ export default function App() {
 
     if (e.cancelable) e.preventDefault();
 
-    const tabs = visibleTabs();
-    const currentIndex = tabs.indexOf(activeTab());
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        const tabs = visibleTabs();
+        const currentIndex = tabs.indexOf(activeTab());
 
-    if (
-      (currentIndex === 0 && diffX > 0) ||
-      (currentIndex === tabs.length - 1 && diffX < 0)
-    ) {
-      diffX = diffX / 3;
+        if (
+          (currentIndex === 0 && diffX > 0) ||
+          (currentIndex === tabs.length - 1 && diffX < 0)
+        ) {
+          diffX = diffX / 3;
+        }
+        setDragOffset(diffX);
+        ticking = false;
+      });
+      ticking = true;
     }
-    setDragOffset(diffX);
   }
 
   function handleTouchEnd() {

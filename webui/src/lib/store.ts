@@ -1,4 +1,5 @@
 import { createSignal, createMemo, createRoot } from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
 import { API } from "./api";
 import { DEFAULT_CONFIG } from "./constants";
 import { APP_VERSION } from "./constants_gen";
@@ -13,7 +14,7 @@ import type {
   ModeStats,
 } from "./types";
 
-const localeModules = import.meta.glob("../locales/*.json", { eager: true });
+const localeModules = import.meta.glob("../locales/*.json");
 
 type LocaleDict = any;
 
@@ -35,8 +36,9 @@ const createGlobalStore = () => {
 
   const [fixBottomNav, setFixBottomNavSignal] = createSignal(false);
 
-  const [config, setConfig] = createSignal<AppConfig>(DEFAULT_CONFIG);
-  const [modules, setModules] = createSignal<Module[]>([]);
+  const [config, setConfig] = createStore<AppConfig>(DEFAULT_CONFIG);
+  const [modules, setModules] = createStore<Module[]>([]);
+
   const [device, setDevice] = createSignal<DeviceInfo>({
     model: "-",
     android: "-",
@@ -62,29 +64,30 @@ const createGlobalStore = () => {
   const [savingConfig, setSavingConfig] = createSignal(false);
   const [savingModules, setSavingModules] = createSignal(false);
 
-  const availableLanguages: LanguageOption[] = Object.entries(localeModules)
-    .map(([path, mod]: [string, unknown]) => {
-      const match = path.match(/\/([^/]+)\.json$/);
-      const code = match ? match[1] : "en-US";
-      const name =
-        (mod as { default?: { lang?: { display?: string } } }).default?.lang
-          ?.display || code.toUpperCase();
-      return { code, name };
-    })
-    .sort((a, b) => {
-      if (a.code === "en-US") return -1;
-      if (b.code === "en-US") return 1;
-      return a.name.localeCompare(b.name);
-    });
+  const availableLanguages: LanguageOption[] = [
+    { code: "en-US", name: "English" },
+    { code: "es-ES", name: "Español" },
+    { code: "ja-JP", name: "日本語" },
+    { code: "ru-RU", name: "Русский" },
+    { code: "uk-UA", name: "Українська" },
+    { code: "zh-CN", name: "简体中文" },
+    { code: "zh-TW", name: "繁體中文" },
+  ].sort((a, b) => {
+    if (a.code === "en-US") return -1;
+    if (b.code === "en-US") return 1;
+    return a.name.localeCompare(b.name);
+  });
 
   const L = createMemo(
     (): LocaleDict =>
-      (loadedLocale() as { default: LocaleDict })?.default || {},
+      (loadedLocale() as { default: LocaleDict })?.default ||
+      (loadedLocale() as LocaleDict) ||
+      {},
   );
 
   const modeStats = createMemo((): ModeStats => {
     const stats = { auto: 0, magic: 0 };
-    modules().forEach((m) => {
+    modules.forEach((m) => {
       if (!m.is_mounted) return;
       if (m.mode === "auto") stats.auto++;
       else if (m.mode === "magic") stats.magic++;
@@ -111,9 +114,16 @@ const createGlobalStore = () => {
       path.endsWith(`/${code}.json`),
     );
     if (match) {
-      setLoadedLocale(match[1]);
+      const mod = (await match[1]()) as any;
+      setLoadedLocale(mod.default || mod);
     } else {
-      setLoadedLocale(localeModules["../locales/en-US.json"]);
+      const fallbackMatch = Object.entries(localeModules).find(([path]) =>
+        path.endsWith(`/en-US.json`),
+      );
+      if (fallbackMatch) {
+        const fallback = (await fallbackMatch[1]()) as any;
+        setLoadedLocale(fallback.default || fallback);
+      }
     }
   }
 
@@ -149,7 +159,7 @@ const createGlobalStore = () => {
     setLoadingConfig(true);
     try {
       const data = await API.loadConfig();
-      setConfig(data);
+      setConfig(reconcile(data));
     } catch (e) {
       showToast(L().config?.loadError || "Failed to load config", "error");
     }
@@ -159,7 +169,7 @@ const createGlobalStore = () => {
   async function saveConfig() {
     setSavingConfig(true);
     try {
-      await API.saveConfig(config());
+      await API.saveConfig(config);
       showToast(L().common?.saved || "Saved", "success");
     } catch (e) {
       showToast(L().config?.saveFailed || "Failed to save config", "error");
@@ -185,8 +195,8 @@ const createGlobalStore = () => {
   async function loadModules() {
     setLoadingModules(true);
     try {
-      const data = await API.scanModules(config().moduledir);
-      setModules(data);
+      const data = await API.scanModules(config.moduledir);
+      setModules(reconcile(data));
     } catch (e) {
       showToast(L().modules?.scanError || "Failed to load modules", "error");
     }
@@ -196,7 +206,7 @@ const createGlobalStore = () => {
   async function saveModules() {
     setSavingModules(true);
     try {
-      await API.saveModules(modules());
+      await API.saveModules(modules);
       showToast(L().common?.saved || "Saved", "success");
     } catch (e) {
       showToast(
@@ -223,7 +233,7 @@ const createGlobalStore = () => {
       setSystemInfo(info);
       setActivePartitions(info.activeMounts || []);
 
-      if (modules().length === 0) {
+      if (modules.length === 0) {
         await loadModules();
       }
     } catch {}
@@ -257,20 +267,20 @@ const createGlobalStore = () => {
     init,
 
     get config() {
-      return config();
+      return config;
     },
     set config(v) {
-      setConfig(v);
+      setConfig(reconcile(v));
     },
     loadConfig,
     saveConfig,
     resetConfig,
 
     get modules() {
-      return modules();
+      return modules;
     },
     set modules(v) {
-      setModules(v);
+      setModules(reconcile(v));
     },
     get modeStats() {
       return modeStats();

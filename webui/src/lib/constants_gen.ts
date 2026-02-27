@@ -1,4 +1,3 @@
-
 export const APP_VERSION = "v3.0.1-5-g950a83e-dirty";
 export const RUST_PATHS = {
   CONFIG: "/data/adb/meta-hybrid/config.toml",
@@ -7,5 +6,13 @@ export const RUST_PATHS = {
   DAEMON_STATE: "/data/adb/meta-hybrid/run/daemon_state.json",
   DAEMON_LOG: "/data/adb/meta-hybrid/daemon.log",
 } as const;
-export const BUILTIN_PARTITIONS = ["system", "vendor", "product", "system_ext", "odm", "oem", "apex"] as const;
+export const BUILTIN_PARTITIONS = [
+  "system",
+  "vendor",
+  "product",
+  "system_ext",
+  "odm",
+  "oem",
+  "apex",
+] as const;
 export const IS_RELEASE = false;
