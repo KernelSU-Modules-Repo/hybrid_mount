@@ -180,20 +180,12 @@ pub fn generate(
                     continue;
                 };
 
-                let mut modified = false;
                 let mut partitions = HashSet::new();
                 partitions.insert("system".to_string());
                 partitions.extend(config.partitions.clone());
                 partitions.extend(defs::BUILTIN_PARTITIONS.iter().map(|s| s.to_string()));
 
-                for p in &partitions {
-                    if entry.path().join(p).is_dir() {
-                        modified = true;
-                        break;
-                    }
-                }
-
-                if !modified {
+                if !partitions.contains(dir_name) {
                     continue;
                 }
 
