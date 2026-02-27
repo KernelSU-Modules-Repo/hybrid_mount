@@ -175,15 +175,29 @@ pub fn generate(
                     continue;
                 }
 
-                let dir_name = entry.file_name().to_string_lossy().to_string();
+                let dir_name = entry.file_name();
+                let Some(dir_name) = dir_name.to_str() else {
+                    continue;
+                };
 
-                if !defs::BUILTIN_PARTITIONS.contains(&dir_name.as_str())
-                    && !config.partitions.contains(&dir_name)
-                {
+                let mut modified = false;
+                let mut partitions = HashSet::new();
+                partitions.insert("system".to_string());
+                partitions.extend(config.partitions.clone());
+                partitions.extend(defs::BUILTIN_PARTITIONS.iter().map(|s| s.to_string()));
+
+                for p in &partitions {
+                    if entry.path().join(p).is_dir() {
+                        modified = true;
+                        break;
+                    }
+                }
+
+                if !modified {
                     continue;
                 }
 
-                let mode = module.rules.get_mode(&dir_name);
+                let mode = module.rules.get_mode(dir_name);
                 if matches!(mode, MountMode::Magic) {
                     magic_ids.insert(module.id.clone());
                     continue;
@@ -197,8 +211,8 @@ pub fn generate(
                 let mut queue = VecDeque::new();
                 queue.push_back(ProcessingItem {
                     module_source: path.clone(),
-                    system_target: PathBuf::from("/").join(&dir_name),
-                    partition_label: dir_name.clone(),
+                    system_target: Path::new("/").join(dir_name),
+                    partition_label: dir_name.to_string(),
                 });
 
                 while let Some(item) = queue.pop_front() {
