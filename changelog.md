@@ -1,4 +1,8 @@
-## v3.1.2
+## v3.1.4
+
+Changes since v3.1.3:
+* fix(planner): correct module partition directory detection logic
+* chore(deps): bump rollup## v3.1.2
 
 Changes since v3.1.1:
 * feat: add remote release step for KernelSU-Repo in workflow
