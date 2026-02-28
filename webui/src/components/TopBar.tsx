@@ -1,5 +1,5 @@
 import { Show, For } from "solid-js";
-import { store } from "../lib/store";
+import { uiStore } from "../lib/stores/uiStore";
 import { ICONS } from "../lib/constants";
 import "./TopBar.css";
 import "@material/web/icon/icon.js";
@@ -26,7 +26,7 @@ export default function TopBar() {
   }
 
   function setLang(code: string) {
-    store.setLang(code);
+    uiStore.setLang(code);
     closeLangDialog();
   }
 
@@ -34,11 +34,11 @@ export default function TopBar() {
     <>
       <header class="top-bar">
         <div class="top-bar-content">
-          <h1 class="screen-title">{store.L?.common?.appName}</h1>
+          <h1 class="screen-title">{uiStore.L?.common?.appName}</h1>
           <div class="top-actions">
             <md-icon-button
               onClick={openLangDialog}
-              title={store.L?.common?.language}
+              title={uiStore.L?.common?.language}
               role="button"
               tabIndex={0}
             >
@@ -53,11 +53,11 @@ export default function TopBar() {
       </header>
 
       <md-dialog ref={langDialogRef} class="lang-dialog">
-        <div slot="headline">{store.L?.common?.language || "Language"}</div>
+        <div slot="headline">{uiStore.L?.common?.language || "Language"}</div>
 
         <div slot="content" class="lang-list-container">
           <md-list>
-            <For each={store.availableLanguages}>
+            <For each={uiStore.availableLanguages}>
               {(l) => (
                 <md-list-item
                   type="button"
@@ -65,7 +65,7 @@ export default function TopBar() {
                   style={{ cursor: "pointer" }}
                 >
                   <div slot="headline">{l.name}</div>
-                  <Show when={store.lang === l.code}>
+                  <Show when={uiStore.lang === l.code}>
                     <md-icon slot="end">
                       <svg viewBox="0 0 24 24">
                         <path d={ICONS.check} />
@@ -80,7 +80,7 @@ export default function TopBar() {
 
         <div slot="actions">
           <md-text-button onClick={closeLangDialog}>
-            {store.L?.common?.cancel || "Cancel"}
+            {uiStore.L?.common?.cancel || "Cancel"}
           </md-text-button>
         </div>
       </md-dialog>

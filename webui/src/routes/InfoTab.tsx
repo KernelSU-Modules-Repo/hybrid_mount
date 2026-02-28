@@ -1,5 +1,6 @@
 import { createSignal, onMount, Show, For } from "solid-js";
-import { store } from "../lib/store";
+import { uiStore } from "../lib/stores/uiStore";
+import { sysStore } from "../lib/stores/sysStore";
 import { API } from "../lib/api";
 import { ICONS } from "../lib/constants";
 import { IS_RELEASE } from "../lib/constants_gen";
@@ -38,7 +39,7 @@ export default function InfoTab() {
   const [contributors, setContributors] = createSignal<Contributor[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal(false);
-  const [version, setVersion] = createSignal(store.version);
+  const [version, setVersion] = createSignal(sysStore.version);
   const [activeQr, setActiveQr] = createSignal<string>("");
 
   let donateDialogRef: HTMLElement | undefined;
@@ -219,7 +220,7 @@ export default function InfoTab() {
             </svg>
           </Show>
         </div>
-        <span class="app-name">{store.L.common.appName}</span>
+        <span class="app-name">{uiStore.L.common.appName}</span>
         <span class="app-version">{version()}</span>
       </div>
 
@@ -237,7 +238,7 @@ export default function InfoTab() {
               <path d={ICONS.github} />
             </svg>
           </md-icon>
-          {store.L.info.projectLink}
+          {uiStore.L.info.projectLink}
         </md-filled-tonal-button>
 
         <md-filled-tonal-button
@@ -265,12 +266,12 @@ export default function InfoTab() {
               <path d={ICONS.donate} />
             </svg>
           </md-icon>
-          {store.L.info.donate}
+          {uiStore.L.info.donate}
         </md-filled-tonal-button>
       </div>
 
       <div class="contributors-section">
-        <div class="section-title">{store.L.info.contributors}</div>
+        <div class="section-title">{uiStore.L.info.contributors}</div>
 
         <div class="list-wrapper">
           <Show
@@ -292,7 +293,7 @@ export default function InfoTab() {
             <Show
               when={!error()}
               fallback={
-                <div class="error-message">{store.L.info.loadFail}</div>
+                <div class="error-message">{uiStore.L.info.loadFail}</div>
               }
             >
               <md-list class="contributors-list">
@@ -315,7 +316,7 @@ export default function InfoTab() {
                       />
                       <div slot="headline">{user.name || user.login}</div>
                       <div slot="supporting-text">
-                        {user.bio || store.L.info.noBio}
+                        {user.bio || uiStore.L.info.noBio}
                       </div>
                     </md-list-item>
                   )}

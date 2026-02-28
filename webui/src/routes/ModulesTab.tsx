@@ -6,7 +6,8 @@ import {
   For,
   createDeferred,
 } from "solid-js";
-import { store } from "../lib/store";
+import { uiStore } from "../lib/stores/uiStore";
+import { moduleStore } from "../lib/stores/moduleStore";
 import { ICONS } from "../lib/constants";
 import Skeleton from "../components/Skeleton";
 import BottomActions from "../components/BottomActions";
@@ -33,9 +34,9 @@ export default function ModulesTab() {
   });
 
   function load() {
-    store.loadModules().then(() => {
+    moduleStore.loadModules().then(() => {
       const snapshot: Record<string, string> = {};
-      store.modules.forEach((m) => {
+      moduleStore.modules.forEach((m) => {
         snapshot[m.id] = JSON.stringify(m.rules);
       });
       setInitialRulesSnapshot(snapshot);
@@ -43,7 +44,7 @@ export default function ModulesTab() {
   }
 
   const dirtyModules = createMemo(() =>
-    store.modules.filter((m) => {
+    moduleStore.modules.filter((m) => {
       const initial = initialRulesSnapshot()[m.id];
       if (!initial) return false;
       return JSON.stringify(m.rules) !== initial;
@@ -53,12 +54,12 @@ export default function ModulesTab() {
   const isDirty = createMemo(() => dirtyModules().length > 0);
 
   function updateModule(modId: string, transform: (m: Module) => Module) {
-    const idx = store.modules.findIndex((m) => m.id === modId);
+    const idx = moduleStore.modules.findIndex((m) => m.id === modId);
     if (idx === -1) return;
 
-    const newModules = [...store.modules];
+    const newModules = [...moduleStore.modules];
     newModules[idx] = transform({ ...newModules[idx] });
-    store.modules = newModules;
+    moduleStore.modules = newModules;
   }
 
   async function performSave() {
@@ -69,19 +70,19 @@ export default function ModulesTab() {
         await API.saveModuleRules(mod.id, mod.rules);
       }
       await load();
-      store.showToast(
-        store.L.modules?.saveSuccess || "Saved successfully",
+      uiStore.showToast(
+        uiStore.L.modules?.saveSuccess || "Saved successfully",
         "success",
       );
     } catch (e: any) {
-      store.showToast(e.message || "Failed to save", "error");
+      uiStore.showToast(e.message || "Failed to save", "error");
     } finally {
       setIsSaving(false);
     }
   }
 
   const filteredModules = createMemo(() =>
-    store.modules.filter((m) => {
+    moduleStore.modules.filter((m) => {
       const q = deferredSearchQuery().toLowerCase();
       if (!m.is_mounted && !showUnmounted()) {
         return false;
@@ -106,7 +107,7 @@ export default function ModulesTab() {
   }
 
   function getModeLabel(mod: Module) {
-    const m = store.L.modules?.modes;
+    const m = uiStore.L.modules?.modes;
     if (!mod.is_mounted) return m?.none ?? "Unmounted";
     if (mod.mode === "magic") return m?.magic ?? "Magic";
     return m?.auto ?? "Overlay";
@@ -140,9 +141,9 @@ export default function ModulesTab() {
             <input
               type="text"
               class="search-input"
-              placeholder={store.L.modules?.searchPlaceholder}
+              placeholder={uiStore.L.modules?.searchPlaceholder}
               aria-label={
-                store.L.modules?.searchPlaceholder || "Search modules"
+                uiStore.L.modules?.searchPlaceholder || "Search modules"
               }
               value={searchQuery()}
               onInput={(e) => setSearchQuery(e.currentTarget.value)}
@@ -173,10 +174,10 @@ export default function ModulesTab() {
                 class="filter-select"
                 value={filterType()}
                 onChange={(e) => setFilterType(e.currentTarget.value)}
-                aria-label={store.L.modules?.filterLabel || "Filter modules"}
-                title={store.L.modules?.filterLabel || "Filter modules"}
+                aria-label={uiStore.L.modules?.filterLabel || "Filter modules"}
+                title={uiStore.L.modules?.filterLabel || "Filter modules"}
               >
-                <option value="all">{store.L.modules?.filterAll}</option>
+                <option value="all">{uiStore.L.modules?.filterAll}</option>
                 <option value="auto">Overlay</option>
                 <option value="magic">Magic</option>
               </select>
@@ -186,7 +187,7 @@ export default function ModulesTab() {
 
         <div class="modules-list">
           <Show
-            when={!store.loading.modules}
+            when={!moduleStore.loading}
             fallback={
               <For each={Array(6)}>
                 {() => <Skeleton height="64px" borderRadius="16px" />}
@@ -245,7 +246,7 @@ export default function ModulesTab() {
 
                           <div class="body-section">
                             <div class="section-label">
-                              {store.L.modules?.defaultMode ?? "Strategy"}
+                              {uiStore.L.modules?.defaultMode ?? "Strategy"}
                             </div>
                             <div class="strategy-selector">
                               <button
@@ -255,7 +256,7 @@ export default function ModulesTab() {
                                 }
                               >
                                 <span class="opt-title">
-                                  {store.L.modules?.modes?.short?.auto ??
+                                  {uiStore.L.modules?.modes?.short?.auto ??
                                     "Overlay"}
                                 </span>
                                 <span class="opt-sub">Default</span>
@@ -265,7 +266,7 @@ export default function ModulesTab() {
                                 onClick={() => updateDefaultMode(mod, "magic")}
                               >
                                 <span class="opt-title">
-                                  {store.L.modules?.modes?.short?.magic ??
+                                  {uiStore.L.modules?.modes?.short?.magic ??
                                     "Magic"}
                                 </span>
                                 <span class="opt-sub">Compat</span>
@@ -275,7 +276,7 @@ export default function ModulesTab() {
                                 onClick={() => updateDefaultMode(mod, "ignore")}
                               >
                                 <span class="opt-title">
-                                  {store.L.modules?.modes?.short?.ignore ??
+                                  {uiStore.L.modules?.modes?.short?.ignore ??
                                     "Ignore"}
                                 </span>
                                 <span class="opt-sub">Disable</span>
@@ -296,8 +297,8 @@ export default function ModulesTab() {
       <BottomActions>
         <md-filled-tonal-icon-button
           onClick={load}
-          disabled={store.loading.modules}
-          title={store.L.modules?.reload}
+          disabled={moduleStore.loading}
+          title={uiStore.L.modules?.reload}
         >
           <md-icon>
             <svg viewBox="0 0 24 24">
@@ -317,7 +318,7 @@ export default function ModulesTab() {
               <path d={ICONS.save} />
             </svg>
           </md-icon>
-          {isSaving() ? store.L.common?.saving : store.L.modules?.save}
+          {isSaving() ? uiStore.L.common?.saving : uiStore.L.modules?.save}
         </md-filled-button>
       </BottomActions>
     </>

@@ -1,10 +1,7 @@
-/**
- * Copyright 2026 Hybrid Mount Developers
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 import { createSignal, createEffect, createMemo, Show, For } from "solid-js";
-import { store } from "../lib/store";
+import { uiStore } from "../lib/stores/uiStore";
+import { configStore } from "../lib/stores/configStore";
+import { sysStore } from "../lib/stores/sysStore";
 import { ICONS } from "../lib/constants";
 import { API } from "../lib/api";
 import ChipInput from "../components/ChipInput";
@@ -27,32 +24,32 @@ export default function ConfigTab() {
 
   const isValidPath = (p: string) => !p || (p.startsWith("/") && p.length > 1);
   const invalidModuleDir = createMemo(
-    () => !isValidPath(store.config.moduledir),
+    () => !isValidPath(configStore.config.moduledir),
   );
 
   const isDirty = createMemo(() => {
     if (!initialConfigStr()) return false;
-    return JSON.stringify(store.config) !== initialConfigStr();
+    return JSON.stringify(configStore.config) !== initialConfigStr();
   });
 
   createEffect(() => {
-    if (!store.loading.config && store.config) {
+    if (!configStore.loading && configStore.config) {
       if (
         !initialConfigStr() ||
-        initialConfigStr() === JSON.stringify(store.config)
+        initialConfigStr() === JSON.stringify(configStore.config)
       ) {
-        setInitialConfigStr(JSON.stringify(store.config));
+        setInitialConfigStr(JSON.stringify(configStore.config));
       }
     }
   });
 
   createEffect(() => {
     if (
-      store.systemInfo?.zygisksuEnforce &&
-      store.systemInfo.zygisksuEnforce !== "0" &&
-      !store.config.allow_umount_coexistence
+      sysStore.systemInfo?.zygisksuEnforce &&
+      sysStore.systemInfo.zygisksuEnforce !== "0" &&
+      !configStore.config.allow_umount_coexistence
     ) {
-      if (!store.config.disable_umount) {
+      if (!configStore.config.disable_umount) {
         updateConfig("disable_umount", true);
       }
     }
@@ -62,44 +59,44 @@ export default function ConfigTab() {
     key: K,
     value: AppConfig[K],
   ) {
-    store.config = { ...store.config, [key]: value };
+    configStore.config = { ...configStore.config, [key]: value };
   }
 
   function save() {
     if (invalidModuleDir()) {
-      store.showToast(store.L.config.invalidPath, "error");
+      uiStore.showToast(uiStore.L.config.invalidPath, "error");
       return;
     }
-    store.saveConfig().then(() => {
-      setInitialConfigStr(JSON.stringify(store.config));
+    configStore.saveConfig().then(() => {
+      setInitialConfigStr(JSON.stringify(configStore.config));
     });
   }
 
   function reload() {
-    store.loadConfig().then(() => {
-      setInitialConfigStr(JSON.stringify(store.config));
+    configStore.loadConfig().then(() => {
+      setInitialConfigStr(JSON.stringify(configStore.config));
     });
   }
 
   function reset() {
     setShowResetConfirm(false);
-    store.resetConfig().then(() => {
-      setInitialConfigStr(JSON.stringify(store.config));
+    configStore.resetConfig().then(() => {
+      setInitialConfigStr(JSON.stringify(configStore.config));
     });
   }
 
   function toggle(key: keyof AppConfig) {
-    const currentVal = store.config[key] as boolean;
+    const currentVal = configStore.config[key] as boolean;
     const newVal = !currentVal;
 
     if (key === "disable_umount") {
       if (
-        store.systemInfo?.zygisksuEnforce &&
-        store.systemInfo.zygisksuEnforce !== "0" &&
-        !store.config.allow_umount_coexistence
+        sysStore.systemInfo?.zygisksuEnforce &&
+        sysStore.systemInfo.zygisksuEnforce !== "0" &&
+        !configStore.config.allow_umount_coexistence
       ) {
-        store.showToast(
-          store.L.config?.coexistenceRequired || "Coexistence required",
+        uiStore.showToast(
+          uiStore.L.config?.coexistenceRequired || "Coexistence required",
           "error",
         );
         return;
@@ -108,10 +105,10 @@ export default function ConfigTab() {
 
     updateConfig(key, newVal);
 
-    API.saveConfig({ ...store.config, [key]: newVal }).catch(() => {
+    API.saveConfig({ ...configStore.config, [key]: newVal }).catch(() => {
       updateConfig(key, currentVal);
-      store.showToast(
-        store.L.config?.saveFailed || "Failed to update setting",
+      uiStore.showToast(
+        uiStore.L.config?.saveFailed || "Failed to update setting",
         "error",
       );
     });
@@ -122,18 +119,18 @@ export default function ConfigTab() {
   }
 
   const availableModes = createMemo(() => {
-    const storageModes = (store.storage as any)?.supported_modes;
+    const storageModes = (sysStore.storage as any)?.supported_modes;
     let modes: OverlayMode[];
 
     if (storageModes && Array.isArray(storageModes)) {
       modes = storageModes as OverlayMode[];
     } else {
       modes =
-        store.systemInfo?.supported_overlay_modes ??
+        sysStore.systemInfo?.supported_overlay_modes ??
         (["tmpfs", "ext4", "erofs"] as OverlayMode[]);
     }
 
-    if (store.systemInfo?.tmpfs_xattr_supported === false) {
+    if (sysStore.systemInfo?.tmpfs_xattr_supported === false) {
       modes = modes.filter((m) => m !== "tmpfs");
     }
 
@@ -154,18 +151,18 @@ export default function ConfigTab() {
         class="transparent-scrim"
       >
         <div slot="headline">
-          {store.L.config?.resetConfigTitle ?? "Reset Configuration?"}
+          {uiStore.L.config?.resetConfigTitle ?? "Reset Configuration?"}
         </div>
         <div slot="content">
-          {store.L.config?.resetConfigConfirm ??
+          {uiStore.L.config?.resetConfigConfirm ??
             "This will reset all backend settings to defaults. Continue?"}
         </div>
         <div slot="actions">
           <md-text-button onClick={() => setShowResetConfirm(false)}>
-            {store.L.common?.cancel ?? "Cancel"}
+            {uiStore.L.common?.cancel ?? "Cancel"}
           </md-text-button>
           <md-text-button onClick={reset}>
-            {store.L.config?.resetConfig ?? "Reset Config"}
+            {uiStore.L.config?.resetConfig ?? "Reset Config"}
           </md-text-button>
         </div>
       </md-dialog>
@@ -182,9 +179,9 @@ export default function ConfigTab() {
                 </md-icon>
               </div>
               <div class="card-text">
-                <span class="card-title">{store.L.config.moduleDir}</span>
+                <span class="card-title">{uiStore.L.config.moduleDir}</span>
                 <span class="card-desc">
-                  {store.L.config?.moduleDirDesc ??
+                  {uiStore.L.config?.moduleDirDesc ??
                     "Set the directory where modules are stored"}
                 </span>
               </div>
@@ -192,8 +189,8 @@ export default function ConfigTab() {
 
             <div class="input-stack">
               <md-outlined-text-field
-                label={store.L.config.moduleDir}
-                value={store.config.moduledir}
+                label={uiStore.L.config.moduleDir}
+                value={configStore.config.moduledir}
                 onInput={(e: Event) =>
                   updateConfig(
                     "moduledir",
@@ -203,7 +200,7 @@ export default function ConfigTab() {
                 error={invalidModuleDir()}
                 supporting-text={
                   invalidModuleDir()
-                    ? store.L.config?.invalidModuleDir || "Invalid Path"
+                    ? uiStore.L.config?.invalidModuleDir || "Invalid Path"
                     : ""
                 }
                 class="full-width-field"
@@ -227,9 +224,9 @@ export default function ConfigTab() {
                 </md-icon>
               </div>
               <div class="card-text">
-                <span class="card-title">{store.L.config.mountSource}</span>
+                <span class="card-title">{uiStore.L.config.mountSource}</span>
                 <span class="card-desc">
-                  {store.L.config?.mountSourceDesc ??
+                  {uiStore.L.config?.mountSourceDesc ??
                     "Global mount source namespace (e.g. KSU)"}
                 </span>
               </div>
@@ -237,8 +234,8 @@ export default function ConfigTab() {
 
             <div class="input-stack">
               <md-outlined-text-field
-                label={store.L.config.mountSource}
-                value={store.config.mountsource}
+                label={uiStore.L.config.mountSource}
+                value={configStore.config.mountsource}
                 onInput={(e: Event) =>
                   updateConfig(
                     "mountsource",
@@ -268,15 +265,16 @@ export default function ConfigTab() {
                 </md-icon>
               </div>
               <div class="card-text">
-                <span class="card-title">{store.L.config.partitions}</span>
+                <span class="card-title">{uiStore.L.config.partitions}</span>
                 <span class="card-desc">
-                  {store.L.config?.partitionsDesc ?? "Add partitions to mount"}
+                  {uiStore.L.config?.partitionsDesc ??
+                    "Add partitions to mount"}
                 </span>
               </div>
             </div>
             <div class="p-input">
               <ChipInput
-                values={store.config.partitions}
+                values={configStore.config.partitions}
                 placeholder="e.g. product, system_ext..."
                 onValuesChange={(vals) => updateConfig("partitions", vals)}
               />
@@ -296,10 +294,10 @@ export default function ConfigTab() {
               </div>
               <div class="card-text">
                 <span class="card-title">
-                  {store.L.config?.overlayMode || "Overlay Mode"}
+                  {uiStore.L.config?.overlayMode || "Overlay Mode"}
                 </span>
                 <span class="card-desc">
-                  {store.L.config?.overlayModeDesc ||
+                  {uiStore.L.config?.overlayModeDesc ||
                     "Select backing storage strategy"}
                 </span>
               </div>
@@ -308,16 +306,16 @@ export default function ConfigTab() {
               <For each={availableModes()}>
                 {(mode) => (
                   <button
-                    class={`mode-item ${store.config.overlay_mode === mode ? "selected" : ""}`}
+                    class={`mode-item ${configStore.config.overlay_mode === mode ? "selected" : ""}`}
                     onClick={() => setOverlayMode(mode)}
                   >
                     <md-ripple></md-ripple>
                     <div class="mode-info">
                       <span class="mode-title">
-                        {store.L.config?.[`mode_${mode}`] || mode}
+                        {uiStore.L.config?.[`mode_${mode}`] || mode}
                       </span>
                       <span class="mode-desc">
-                        {store.L.config?.[`mode_${mode}Desc`] ||
+                        {uiStore.L.config?.[`mode_${mode}Desc`] ||
                           MODE_DESCS[mode]}
                       </span>
                     </div>
@@ -336,7 +334,7 @@ export default function ConfigTab() {
 
           <div class="options-grid">
             <button
-              class={`option-tile clickable tertiary ${store.config.disable_umount ? "active" : ""}`}
+              class={`option-tile clickable tertiary ${configStore.config.disable_umount ? "active" : ""}`}
               onClick={() => toggle("disable_umount")}
             >
               <md-ripple></md-ripple>
@@ -350,18 +348,18 @@ export default function ConfigTab() {
                 </div>
               </div>
               <div class="tile-bottom">
-                <span class="tile-label">{store.L.config.disableUmount}</span>
+                <span class="tile-label">{uiStore.L.config.disableUmount}</span>
               </div>
             </button>
 
             <Show
               when={
-                store.systemInfo?.zygisksuEnforce &&
-                store.systemInfo.zygisksuEnforce !== "0"
+                sysStore.systemInfo?.zygisksuEnforce &&
+                sysStore.systemInfo.zygisksuEnforce !== "0"
               }
             >
               <button
-                class={`option-tile clickable error ${store.config.allow_umount_coexistence ? "active" : ""}`}
+                class={`option-tile clickable error ${configStore.config.allow_umount_coexistence ? "active" : ""}`}
                 onClick={() => toggle("allow_umount_coexistence")}
               >
                 <md-ripple></md-ripple>
@@ -376,7 +374,7 @@ export default function ConfigTab() {
                 </div>
                 <div class="tile-bottom">
                   <span class="tile-label">
-                    {store.L.config?.allowUmountCoexistence ||
+                    {uiStore.L.config?.allowUmountCoexistence ||
                       "Allow Coexistence"}
                   </span>
                 </div>
@@ -386,11 +384,11 @@ export default function ConfigTab() {
         </section>
 
         <section class="config-group">
-          <div class="webui-label">{store.L.config?.webui || "WebUI"}</div>
+          <div class="webui-label">{uiStore.L.config?.webui || "WebUI"}</div>
           <div class="options-grid">
             <button
-              class={`option-tile clickable secondary ${store.fixBottomNav ? "active" : ""}`}
-              onClick={store.toggleBottomNavFix}
+              class={`option-tile clickable secondary ${uiStore.fixBottomNav ? "active" : ""}`}
+              onClick={uiStore.toggleBottomNavFix}
             >
               <md-ripple></md-ripple>
               <div class="tile-top">
@@ -404,7 +402,7 @@ export default function ConfigTab() {
               </div>
               <div class="tile-bottom">
                 <span class="tile-label">
-                  {store.L.config?.fixBottomNav || "Fix Bottom Nav"}
+                  {uiStore.L.config?.fixBottomNav || "Fix Bottom Nav"}
                 </span>
               </div>
             </button>
@@ -412,7 +410,7 @@ export default function ConfigTab() {
             <button
               class="option-tile clickable error"
               onClick={() => setShowResetConfirm(true)}
-              disabled={store.saving.config}
+              disabled={configStore.saving}
             >
               <md-ripple></md-ripple>
               <div class="tile-top">
@@ -426,7 +424,7 @@ export default function ConfigTab() {
               </div>
               <div class="tile-bottom">
                 <span class="tile-label">
-                  {store.L.config?.resetConfig || "Reset Config"}
+                  {uiStore.L.config?.resetConfig || "Reset Config"}
                 </span>
               </div>
             </button>
@@ -437,8 +435,8 @@ export default function ConfigTab() {
       <BottomActions>
         <md-filled-tonal-icon-button
           onClick={reload}
-          disabled={store.loading.config}
-          title={store.L.config.reload}
+          disabled={configStore.loading}
+          title={uiStore.L.config.reload}
           role="button"
           tabIndex={0}
         >
@@ -453,7 +451,7 @@ export default function ConfigTab() {
 
         <md-filled-button
           onClick={save}
-          disabled={store.saving.config || !isDirty()}
+          disabled={configStore.saving || !isDirty()}
           role="button"
           tabIndex={0}
         >
@@ -462,7 +460,7 @@ export default function ConfigTab() {
               <path d={ICONS.save} />
             </svg>
           </md-icon>
-          {store.saving.config ? store.L.common.saving : store.L.config.save}
+          {configStore.saving ? uiStore.L.common.saving : uiStore.L.config.save}
         </md-filled-button>
       </BottomActions>
     </>
