@@ -1,7 +1,9 @@
 import {
   createSignal,
   createMemo,
+  createEffect,
   onMount,
+  onCleanup,
   Show,
   For,
   createDeferred,
@@ -28,9 +30,28 @@ export default function ModulesTab() {
     Record<string, string>
   >({});
   const [isSaving, setIsSaving] = createSignal(false);
+  const [visibleCount, setVisibleCount] = createSignal(20);
+  let observerTarget: HTMLDivElement | undefined;
 
   onMount(() => {
     load();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((c) => c + 20);
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    if (observerTarget) observer.observe(observerTarget);
+    onCleanup(() => observer.disconnect());
+  });
+
+  createEffect(() => {
+    searchQuery();
+    filterType();
+    showUnmounted();
+    setVisibleCount(20);
   });
 
   function load() {
@@ -213,7 +234,7 @@ export default function ModulesTab() {
                 </div>
               }
             >
-              <For each={filteredModules()}>
+              <For each={filteredModules().slice(0, visibleCount())}>
                 {(mod) => (
                   <div
                     class={`module-card ${expandedId() === mod.id ? "expanded" : ""} ${initialRulesSnapshot()[mod.id] !== JSON.stringify(mod.rules) ? "dirty" : ""}`}
@@ -289,6 +310,7 @@ export default function ModulesTab() {
                   </div>
                 )}
               </For>
+              <div ref={observerTarget} style={{ height: "20px" }}></div>
             </Show>
           </Show>
         </div>

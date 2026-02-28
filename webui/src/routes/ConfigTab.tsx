@@ -43,18 +43,6 @@ export default function ConfigTab() {
     }
   });
 
-  createEffect(() => {
-    if (
-      sysStore.systemInfo?.zygisksuEnforce &&
-      sysStore.systemInfo.zygisksuEnforce !== "0" &&
-      !configStore.config.allow_umount_coexistence
-    ) {
-      if (!configStore.config.disable_umount) {
-        updateConfig("disable_umount", true);
-      }
-    }
-  });
-
   function updateConfig<K extends keyof AppConfig>(
     key: K,
     value: AppConfig[K],
@@ -88,20 +76,6 @@ export default function ConfigTab() {
   function toggle(key: keyof AppConfig) {
     const currentVal = configStore.config[key] as boolean;
     const newVal = !currentVal;
-
-    if (key === "disable_umount") {
-      if (
-        sysStore.systemInfo?.zygisksuEnforce &&
-        sysStore.systemInfo.zygisksuEnforce !== "0" &&
-        !configStore.config.allow_umount_coexistence
-      ) {
-        uiStore.showToast(
-          uiStore.L.config?.coexistenceRequired || "Coexistence required",
-          "error",
-        );
-        return;
-      }
-    }
 
     updateConfig(key, newVal);
 
@@ -351,35 +325,6 @@ export default function ConfigTab() {
                 <span class="tile-label">{uiStore.L.config.disableUmount}</span>
               </div>
             </button>
-
-            <Show
-              when={
-                sysStore.systemInfo?.zygisksuEnforce &&
-                sysStore.systemInfo.zygisksuEnforce !== "0"
-              }
-            >
-              <button
-                class={`option-tile clickable error ${configStore.config.allow_umount_coexistence ? "active" : ""}`}
-                onClick={() => toggle("allow_umount_coexistence")}
-              >
-                <md-ripple></md-ripple>
-                <div class="tile-top">
-                  <div class="tile-icon">
-                    <md-icon>
-                      <svg viewBox="0 0 24 24">
-                        <path d={ICONS.shield} />
-                      </svg>
-                    </md-icon>
-                  </div>
-                </div>
-                <div class="tile-bottom">
-                  <span class="tile-label">
-                    {uiStore.L.config?.allowUmountCoexistence ||
-                      "Allow Coexistence"}
-                  </span>
-                </div>
-              </button>
-            </Show>
           </div>
         </section>
 

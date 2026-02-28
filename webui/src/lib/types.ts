@@ -1,8 +1,3 @@
-/**
- * Copyright 2026 Hybrid Mount Developers
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 export interface ModuleRules {
   default_mode: MountMode;
   paths: Record<string, string>;
@@ -16,7 +11,6 @@ export interface AppConfig {
   partitions: string[];
   overlay_mode: OverlayMode;
   disable_umount: boolean;
-  allow_umount_coexistence: boolean;
   logfile?: string;
 }
 
