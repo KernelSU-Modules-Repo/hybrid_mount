@@ -25,9 +25,7 @@ let ksuExec: KsuModule["exec"] | null = null;
 try {
   const ksu = await import("kernelsu").catch(() => null);
   ksuExec = ksu ? ksu.exec : null;
-} catch {
-  console.warn("KernelSU module not found, defaulting to Mock/Fallback.");
-}
+} catch {}
 
 const shouldUseMock = import.meta.env.DEV || !ksuExec;
 
@@ -50,7 +48,17 @@ function stringToHex(str: string): string {
   return hex;
 }
 
-interface AppAPI {
+class AppError extends Error {
+  constructor(
+    public message: string,
+    public code?: number,
+  ) {
+    super(message);
+    this.name = "AppError";
+  }
+}
+
+export interface AppAPI {
   loadConfig: () => Promise<AppConfig>;
   saveConfig: (config: AppConfig) => Promise<void>;
   resetConfig: () => Promise<void>;
@@ -68,156 +76,127 @@ interface AppAPI {
 
 const RealAPI: AppAPI = {
   loadConfig: async (): Promise<AppConfig> => {
-    if (!ksuExec) return DEFAULT_CONFIG;
+    if (!ksuExec) throw new AppError("No KSU environment");
     const cmd = `${PATHS.BINARY} show-config`;
-    try {
-      const { errno, stdout } = await ksuExec(cmd);
-      if (errno === 0 && stdout) {
-        const loaded = JSON.parse(stdout);
-        return { ...DEFAULT_CONFIG, ...loaded };
-      }
-    } catch {}
-    return DEFAULT_CONFIG;
+    const { errno, stdout, stderr } = await ksuExec(cmd);
+    if (errno === 0 && stdout) {
+      return { ...DEFAULT_CONFIG, ...JSON.parse(stdout) };
+    }
+    throw new AppError(`loadConfig failed: ${stderr}`, errno);
   },
   saveConfig: async (config: AppConfig): Promise<void> => {
-    if (!ksuExec) throw new Error("No KSU environment");
-    const jsonStr = JSON.stringify(config);
-    const hexPayload = stringToHex(jsonStr);
+    if (!ksuExec) throw new AppError("No KSU environment");
+    const hexPayload = stringToHex(JSON.stringify(config));
     const cmd = `${PATHS.BINARY} save-config --payload ${hexPayload}`;
     const { errno, stderr } = await ksuExec(cmd);
-    if (errno !== 0) throw new Error(`Failed to save config: ${stderr}`);
+    if (errno !== 0) throw new AppError(`saveConfig failed: ${stderr}`, errno);
   },
   resetConfig: async (): Promise<void> => {
-    if (!ksuExec) throw new Error("No KSU environment");
+    if (!ksuExec) throw new AppError("No KSU environment");
     const cmd = `${PATHS.BINARY} gen-config`;
     const { errno, stderr } = await ksuExec(cmd);
-    if (errno !== 0) throw new Error(`Failed to reset config: ${stderr}`);
+    if (errno !== 0) throw new AppError(`resetConfig failed: ${stderr}`, errno);
   },
-  scanModules: async (_path?: string): Promise<Module[]> => {
-    if (!ksuExec) return [];
+  scanModules: async (): Promise<Module[]> => {
+    if (!ksuExec) throw new AppError("No KSU environment");
     const cmd = `${PATHS.BINARY} modules`;
-    try {
-      const { errno, stdout } = await ksuExec(cmd);
-      if (errno === 0 && stdout) return JSON.parse(stdout);
-    } catch {}
-    return [];
+    const { errno, stdout, stderr } = await ksuExec(cmd);
+    if (errno === 0 && stdout) return JSON.parse(stdout);
+    throw new AppError(`scanModules failed: ${stderr}`, errno);
   },
-  saveModules: async (_modules: Module[]): Promise<void> => {
+  saveModules: async (): Promise<void> => {
     return;
   },
   readLogs: async (): Promise<string> => {
-    if (!ksuExec) return "";
-    try {
-      const { errno, stdout } = await ksuExec(
-        `cat "${DEFAULT_CONFIG.logfile}"`,
-      );
-      if (errno === 0 && stdout) return stdout;
-    } catch (e) {}
-    return "";
+    if (!ksuExec) throw new AppError("No KSU environment");
+    const { errno, stdout, stderr } = await ksuExec(
+      `cat "${DEFAULT_CONFIG.logfile}"`,
+    );
+    if (errno === 0 && stdout) return stdout;
+    throw new AppError(`readLogs failed: ${stderr}`, errno);
   },
-
   saveModuleRules: async (
     moduleId: string,
     rules: ModuleRules,
   ): Promise<void> => {
-    if (!ksuExec) throw new Error("No KSU environment");
-    const jsonStr = JSON.stringify(rules);
-    const hexPayload = stringToHex(jsonStr);
+    if (!ksuExec) throw new AppError("No KSU environment");
+    const hexPayload = stringToHex(JSON.stringify(rules));
     const cmd = `${PATHS.BINARY} save-module-rules --module "${moduleId}" --payload ${hexPayload}`;
     const { errno, stderr } = await ksuExec(cmd);
-    if (errno !== 0) throw new Error(`Failed to save rules: ${stderr}`);
+    if (errno !== 0)
+      throw new AppError(`saveModuleRules failed: ${stderr}`, errno);
   },
   getStorageUsage: async (): Promise<StorageStatus> => {
-    if (!ksuExec) return { type: null };
-    try {
-      const stateFile =
-        (PATHS as Record<string, string>).DAEMON_STATE ||
-        "/data/adb/meta-hybrid/run/daemon_state.json";
-      const { errno, stdout } = await ksuExec(`cat "${stateFile}"`);
-      if (errno === 0 && stdout) {
-        const state = JSON.parse(stdout);
-        return {
-          type: state.storage_mode || "unknown",
-        };
-      }
-    } catch {}
-    return { type: null };
+    if (!ksuExec) throw new AppError("No KSU environment");
+    const stateFile =
+      (PATHS as Record<string, string>).DAEMON_STATE ||
+      "/data/adb/meta-hybrid/run/daemon_state.json";
+    const { errno, stdout, stderr } = await ksuExec(`cat "${stateFile}"`);
+    if (errno === 0 && stdout) {
+      return { type: JSON.parse(stdout).storage_mode || "unknown" };
+    }
+    throw new AppError(`getStorageUsage failed: ${stderr}`, errno);
   },
   getSystemInfo: async (): Promise<SystemInfo> => {
-    if (!ksuExec)
-      return { kernel: "-", selinux: "-", mountBase: "-", activeMounts: [] };
-    try {
-      const cmdSys = `echo "KERNEL:$(uname -r)"; echo "SELINUX:$(getenforce)"`;
-      const { errno: errSys, stdout: outSys } = await ksuExec(cmdSys);
-      const info: SystemInfo = {
-        kernel: "-",
-        selinux: "-",
-        mountBase: "-",
-        activeMounts: [],
-      };
-      if (errSys === 0 && outSys) {
-        outSys.split("\n").forEach((line) => {
-          if (line.startsWith("KERNEL:"))
-            info.kernel = line.substring(7).trim();
-          else if (line.startsWith("SELINUX:"))
-            info.selinux = line.substring(8).trim();
-        });
-      }
-      const stateFile =
-        (PATHS as Record<string, string>).DAEMON_STATE ||
-        "/data/adb/meta-hybrid/run/daemon_state.json";
-      const { errno: errState, stdout: outState } = await ksuExec(
-        `cat "${stateFile}"`,
-      );
-      if (errState === 0 && outState) {
-        try {
-          const state = JSON.parse(outState);
-          info.mountBase = state.mount_point || "Unknown";
-          info.activeMounts = state.active_mounts || [];
-          if (state.zygisksu_enforce !== undefined) {
-            info.zygisksuEnforce = state.zygisksu_enforce ? "1" : "0";
-          }
-          if (state.tmpfs_xattr_supported !== undefined) {
-            info.tmpfs_xattr_supported = state.tmpfs_xattr_supported;
-          }
-        } catch {}
-      }
-      return info;
-    } catch {
-      return { kernel: "-", selinux: "-", mountBase: "-", activeMounts: [] };
+    if (!ksuExec) throw new AppError("No KSU environment");
+    const cmdSys = `echo "KERNEL:$(uname -r)"; echo "SELINUX:$(getenforce)"`;
+    const { errno: errSys, stdout: outSys } = await ksuExec(cmdSys);
+    const info: SystemInfo = {
+      kernel: "-",
+      selinux: "-",
+      mountBase: "-",
+      activeMounts: [],
+    };
+    if (errSys === 0 && outSys) {
+      outSys.split("\n").forEach((line) => {
+        if (line.startsWith("KERNEL:")) info.kernel = line.substring(7).trim();
+        else if (line.startsWith("SELINUX:"))
+          info.selinux = line.substring(8).trim();
+      });
     }
+    const stateFile =
+      (PATHS as Record<string, string>).DAEMON_STATE ||
+      "/data/adb/meta-hybrid/run/daemon_state.json";
+    const { errno: errState, stdout: outState } = await ksuExec(
+      `cat "${stateFile}"`,
+    );
+    if (errState === 0 && outState) {
+      const state = JSON.parse(outState);
+      info.mountBase = state.mount_point || "Unknown";
+      info.activeMounts = state.active_mounts || [];
+      if (state.zygisksu_enforce !== undefined)
+        info.zygisksuEnforce = state.zygisksu_enforce ? "1" : "0";
+      if (state.tmpfs_xattr_supported !== undefined)
+        info.tmpfs_xattr_supported = state.tmpfs_xattr_supported;
+    }
+    return info;
   },
   getDeviceStatus: async (): Promise<DeviceInfo> => {
+    if (!ksuExec) throw new AppError("No KSU environment");
     let model = "Device",
       android = "14",
       kernel = "Unknown";
-    if (ksuExec) {
-      try {
-        const p1 = await ksuExec("getprop ro.product.model");
-        if (p1.errno === 0) model = p1.stdout.trim();
-        const p2 = await ksuExec("getprop ro.build.version.release");
-        const p3 = await ksuExec("getprop ro.build.version.sdk");
-        if (p2.errno === 0)
-          android = `${p2.stdout.trim()} (API ${p3.stdout.trim()})`;
-        const p4 = await ksuExec("uname -r");
-        if (p4.errno === 0) kernel = p4.stdout.trim();
-      } catch {}
-    }
+    const p1 = await ksuExec("getprop ro.product.model");
+    if (p1.errno === 0) model = p1.stdout.trim();
+    const p2 = await ksuExec("getprop ro.build.version.release");
+    const p3 = await ksuExec("getprop ro.build.version.sdk");
+    if (p2.errno === 0)
+      android = `${p2.stdout.trim()} (API ${p3.stdout.trim()})`;
+    const p4 = await ksuExec("uname -r");
+    if (p4.errno === 0) kernel = p4.stdout.trim();
     return { model, android, kernel, selinux: "Enforcing" };
   },
   getVersion: async (): Promise<string> => {
-    if (!ksuExec) return APP_VERSION;
-    try {
-      const binPath = PATHS.BINARY;
-      const moduleDir = binPath.substring(0, binPath.lastIndexOf("/"));
-      const { errno, stdout } = await ksuExec(
-        `grep "^version=" "${moduleDir}/module.prop"`,
-      );
-      if (errno === 0 && stdout) {
-        const match = stdout.match(/^version=(.+)$/m);
-        if (match) return match[1].trim();
-      }
-    } catch {}
+    if (!ksuExec) throw new AppError("No KSU environment");
+    const binPath = PATHS.BINARY;
+    const moduleDir = binPath.substring(0, binPath.lastIndexOf("/"));
+    const { errno, stdout } = await ksuExec(
+      `grep "^version=" "${moduleDir}/module.prop"`,
+    );
+    if (errno === 0 && stdout) {
+      const match = stdout.match(/^version=(.+)$/m);
+      if (match) return match[1].trim();
+    }
     return APP_VERSION;
   },
   openLink: async (url: string): Promise<void> => {
@@ -230,7 +209,7 @@ const RealAPI: AppAPI = {
     );
   },
   reboot: async (): Promise<void> => {
-    if (!ksuExec) return;
+    if (!ksuExec) throw new AppError("No KSU environment");
     await ksuExec("reboot");
   },
 };

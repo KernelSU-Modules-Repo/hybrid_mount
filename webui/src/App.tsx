@@ -1,39 +1,36 @@
-import { createSignal, createMemo, onMount, Show } from "solid-js";
-import { store } from "./lib/store";
-import TopBar from "./components/TopBar.tsx";
-import NavBar from "./components/NavBar.tsx";
-import Toast from "./components/Toast.tsx";
-import StatusTab from "./routes/StatusTab.tsx";
-import ConfigTab from "./routes/ConfigTab.tsx";
-import ModulesTab from "./routes/ModulesTab.tsx";
-import InfoTab from "./routes/InfoTab.tsx";
+import { createSignal, createMemo, onMount, Show, lazy, For } from "solid-js";
+import { uiStore } from "./lib/stores/uiStore";
+import { configStore } from "./lib/stores/configStore";
+import { sysStore } from "./lib/stores/sysStore";
+import TopBar from "./components/TopBar";
+import NavBar from "./components/NavBar";
+import Toast from "./components/Toast";
+
+const routes = [
+  { id: "status", component: lazy(() => import("./routes/StatusTab")) },
+  { id: "config", component: lazy(() => import("./routes/ConfigTab")) },
+  { id: "modules", component: lazy(() => import("./routes/ModulesTab")) },
+  { id: "info", component: lazy(() => import("./routes/InfoTab")) },
+];
 
 export default function App() {
   const [activeTab, setActiveTab] = createSignal("status");
   const [dragOffset, setDragOffset] = createSignal(0);
   const [isDragging, setIsDragging] = createSignal(false);
-  const [isReady, setIsReady] = createSignal(false);
 
   let containerRef: HTMLDivElement | undefined;
   let containerWidth = 0;
-
   let touchStartX = 0;
   let touchStartY = 0;
   let ticking = false;
   let rafId: number | null = null;
 
-  const visibleTabs = createMemo(() => {
-    return ["status", "config", "modules", "info"];
-  });
+  const visibleTabs = createMemo(() => routes.map((r) => r.id));
 
   const baseTranslateX = createMemo(() => {
     const index = visibleTabs().indexOf(activeTab());
     return index * -(100 / visibleTabs().length);
   });
-
-  function switchTab(id: string) {
-    setActiveTab(id);
-  }
 
   function handleTouchStart(e: TouchEvent) {
     touchStartX = e.changedTouches[0].screenX;
@@ -55,7 +52,6 @@ export default function App() {
     const diffY = currentY - touchStartY;
 
     if (Math.abs(diffY) > Math.abs(diffX)) return;
-
     if (e.cancelable) e.preventDefault();
 
     if (!ticking) {
@@ -63,12 +59,9 @@ export default function App() {
       rafId = requestAnimationFrame(() => {
         ticking = false;
         rafId = null;
-
         if (!isDragging()) return;
-
         const tabs = visibleTabs();
         const currentIndex = tabs.indexOf(activeTab());
-
         if (
           (currentIndex === 0 && diffX > 0) ||
           (currentIndex === tabs.length - 1 && diffX < 0)
@@ -83,17 +76,12 @@ export default function App() {
   function handleTouchEnd() {
     if (!isDragging()) return;
     setIsDragging(false);
-
     if (rafId !== null) {
       cancelAnimationFrame(rafId);
       rafId = null;
       ticking = false;
     }
-
-    if (containerRef) {
-      containerWidth = containerRef.clientWidth;
-    }
-
+    if (containerRef) containerWidth = containerRef.clientWidth;
     const threshold = containerWidth * 0.33 || 80;
     const tabs = visibleTabs();
     const currentIndex = tabs.indexOf(activeTab());
@@ -105,25 +93,19 @@ export default function App() {
     } else if (currentOffset > threshold && currentIndex > 0) {
       nextIndex = currentIndex - 1;
     }
-
-    if (nextIndex !== currentIndex) {
-      switchTab(tabs[nextIndex]);
-    }
+    if (nextIndex !== currentIndex) setActiveTab(tabs[nextIndex]);
     setDragOffset(0);
   }
 
   onMount(async () => {
-    try {
-      await store.init();
-    } finally {
-      setIsReady(true);
-    }
+    await uiStore.init();
+    await Promise.all([configStore.loadConfig(), sysStore.loadStatus()]);
   });
 
   return (
     <div class="app-root">
       <Show
-        when={isReady()}
+        when={uiStore.isReady}
         fallback={
           <div class="loading-container">
             <div class="spinner"></div>
@@ -150,41 +132,25 @@ export default function App() {
                 : "transform 0.4s cubic-bezier(0.2, 1, 0.2, 1)",
             }}
           >
-            <div
-              class="swipe-page"
-              style={{ width: `${100 / visibleTabs().length}%` }}
-            >
-              <div class="page-scroller">
-                <StatusTab />
-              </div>
-            </div>
-            <div
-              class="swipe-page"
-              style={{ width: `${100 / visibleTabs().length}%` }}
-            >
-              <div class="page-scroller">
-                <ConfigTab />
-              </div>
-            </div>
-            <div
-              class="swipe-page"
-              style={{ width: `${100 / visibleTabs().length}%` }}
-            >
-              <div class="page-scroller">
-                <ModulesTab />
-              </div>
-            </div>
-            <div
-              class="swipe-page"
-              style={{ width: `${100 / visibleTabs().length}%` }}
-            >
-              <div class="page-scroller">
-                <InfoTab />
-              </div>
-            </div>
+            <For each={routes}>
+              {(route) => (
+                <div
+                  class="swipe-page"
+                  style={{ width: `${100 / visibleTabs().length}%` }}
+                >
+                  <div class="page-scroller">
+                    <route.component />
+                  </div>
+                </div>
+              )}
+            </For>
           </div>
         </main>
-        <NavBar activeTab={activeTab()} onTabChange={switchTab} />
+        <NavBar
+          activeTab={activeTab()}
+          onTabChange={setActiveTab}
+          tabs={routes}
+        />
       </Show>
       <Toast />
     </div>
