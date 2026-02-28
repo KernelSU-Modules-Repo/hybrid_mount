@@ -20,6 +20,7 @@ export default function App() {
   let touchStartX = 0;
   let touchStartY = 0;
   let ticking = false;
+  let rafId: number | null = null;
 
   const visibleTabs = createMemo(() => {
     return ["status", "config", "modules", "info"];
@@ -39,6 +40,11 @@ export default function App() {
     touchStartY = e.changedTouches[0].screenY;
     setIsDragging(true);
     setDragOffset(0);
+    ticking = false;
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
   }
 
   function handleTouchMove(e: TouchEvent) {
@@ -53,7 +59,13 @@ export default function App() {
     if (e.cancelable) e.preventDefault();
 
     if (!ticking) {
-      requestAnimationFrame(() => {
+      ticking = true;
+      rafId = requestAnimationFrame(() => {
+        ticking = false;
+        rafId = null;
+
+        if (!isDragging()) return;
+
         const tabs = visibleTabs();
         const currentIndex = tabs.indexOf(activeTab());
 
@@ -64,15 +76,19 @@ export default function App() {
           diffX = diffX / 3;
         }
         setDragOffset(diffX);
-        ticking = false;
       });
-      ticking = true;
     }
   }
 
   function handleTouchEnd() {
     if (!isDragging()) return;
     setIsDragging(false);
+
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+      ticking = false;
+    }
 
     if (containerRef) {
       containerWidth = containerRef.clientWidth;
