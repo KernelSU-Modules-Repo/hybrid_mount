@@ -175,6 +175,12 @@ pub fn generate(
                     continue;
                 }
 
+                if let Ok(file_type) = entry.file_type()
+                    && file_type.is_symlink()
+                {
+                    continue;
+                }
+
                 let dir_name = entry.file_name();
                 let Some(dir_name) = dir_name.to_str() else {
                     continue;
@@ -231,14 +237,21 @@ pub fn generate(
                         }
                         Err(_) => system_target.clone(),
                     };
-
                     let canonical_target = if resolved_target.exists() {
-                        match resolved_target.canonicalize() {
-                            Ok(p) => p,
-                            Err(_) => resolved_target,
+                        resolved_target
+                            .canonicalize()
+                            .unwrap_or_else(|_| resolved_target.clone())
+                    } else if let Some(parent) = resolved_target.parent() {
+                        if parent.exists() {
+                            parent
+                                .canonicalize()
+                                .map(|p| p.join(resolved_target.file_name().unwrap()))
+                                .unwrap_or_else(|_| resolved_target.clone())
+                        } else {
+                            resolved_target.clone()
                         }
                     } else {
-                        resolved_target
+                        resolved_target.clone()
                     };
 
                     let target_name = canonical_target
