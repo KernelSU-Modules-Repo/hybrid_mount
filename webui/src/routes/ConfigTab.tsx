@@ -1,4 +1,4 @@
-import { createSignal, createEffect, createMemo, Show, For } from "solid-js";
+import { createSignal, createEffect, createMemo, For } from "solid-js";
 import { uiStore } from "../lib/stores/uiStore";
 import { configStore } from "../lib/stores/configStore";
 import { sysStore } from "../lib/stores/sysStore";
