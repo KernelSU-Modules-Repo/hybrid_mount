@@ -35,7 +35,7 @@ ksu = { git = "https://github.com/Tools-cx-app/ksu.git", version = "0.2.0" }
 jwalk = "0.8.1"
 log = "0.4.29"
 flate2 = "1.1.9"
-fastrand = "2.3.0"
+fastrand = "2.4.1"
 loopdev = { git = "https://github.com/Hybrid-Mount/loopdev.git", version = "0.5.0" }
 const_format = "0.2.35"
 glob = "0.3.3"
