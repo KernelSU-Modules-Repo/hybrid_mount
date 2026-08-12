@@ -32,7 +32,7 @@ mimalloc = { version = "0.1.48", features = ["no_thp", "override"] }
 walkdir = "2.5.0"
 regex-lite = "0.1.9"
 ksu = { git = "https://github.com/Tools-cx-app/ksu.git", version = "0.2.0" }
-jwalk = "0.8.1"
+jwalk = "0.9.0"
 log = "0.4.29"
 flate2 = "1.1.9"
 fastrand = "2.3.0"
